@@ -7,7 +7,7 @@ output: html_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
-setwd("D:/UMich/Fall23/EAS648/Lab/01")
+setwd("D:/UMich/Fall23/EAS648/Repo/Lab/01")
 ```
 
 ## R Markdown
@@ -16,16 +16,46 @@ This is an R Markdown document. Markdown is a simple formatting syntax for autho
 
 When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
 
-```{r cars}
-summary(cars)
+```{r}
+library(ggplot2)
+library(sf)
+
+library(tidyverse)
 ```
 
-## Including Plots
+Start Loading Data
 
-You can also embed plots, for example:
+```{r}
+boulder = st_read("Data/BoulderSocialMedia.shp")
 
-```{r pressure, echo=FALSE}
-plot(pressure)
+head(boulder)
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+Plot the variables using ggplot2 and geom_xx() functions
+
+```{r}
+ggplot() +
+    geom_sf(data =boulder, fill = NA, alpha = .2) +
+    theme_bw()
+```
+
+Project the data using an appropriate projection for Colorado. Use the epsg.io website for choosing the an appropriate projection
+
+```{r}
+boulder = st_transform(boulder, 26753) 
+ggplot() +
+    geom_sf(data =boulder,
+    fill = NA, alpha = .2) +
+    theme_bw()
+```
+
+
+
+
+
+
+
+
+
+
+
