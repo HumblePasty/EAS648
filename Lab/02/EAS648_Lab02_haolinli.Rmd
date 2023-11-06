@@ -1,0 +1,295 @@
+---
+title: "EAS648 Lab02"
+author: "Haolin Li (haolinli@umich.edu)"
+date: "2023-11-05"
+output: 
+  html_document:
+    output_file: "index.html"
+    toc: true
+    toc_float: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+setwd("D:/UMich/Fall23/EAS648/Repo/Lab/02")
+```
+
+
+
+# EAS 648 Lab Assignment 2
+
+> **Course Repository**: https://github.com/HumblePasty/EAS648
+>
+> **Lab02 Webpage**: https://humblepasty.github.io/EAS648/Lab/02/
+>
+> **Lab02 Repository**: https://github.com/HumblePasty/EAS648/tree/master/Lab/02
+
+
+> **Task Description:**
+>
+> 
+>
+> Develop a research methodology guided by a LiDAR dataset (the one provided or data found from the list below) aimed at exploring its potential applications and insights. Reflect on the perspectives and revelations drawn from your visualization of this data.
+>
+> 
+>
+> Critically analyze the advantages and complexities inherent in the utilization of 3D geovisualization. Additionally, provide an assessment of the trajectory of 3D technology, including immersive environments, within the academic and professional landscape. (Maximum 4 paragraphs)
+
+
+
+## Part I: LiDAR Research Methodology
+> **Task: **
+>
+> 
+>
+> Develop a research methodology guided by a LiDAR dataset (the one provided or data found from the list below) aimed at exploring its potential applications and insights. Reflect on the perspectives and revelations drawn from your visualization of this data.
+
+> **Description: **
+>
+> 
+>
+> In this section I decided to continue to use the provided dataset in class and 
+
+### 1. Research Question
+
+
+
+### 2. Literature Review
+
+
+
+### 3. Data Source and Method
+
+> The major source of the LiDAR data used fot this 
+
+### 4. Implementation
+
+```{r}
+# Requiring the library
+## Dependencies
+library(sf)
+library(raster)
+library(terra)
+library(raster)
+library(tmap)
+library(tmaptools)
+library(lidR)
+#library(RStoolbox)
+library(ForestTools)
+library(ggplot2)
+library(gstat)
+
+library(leaflet)
+
+library(tmap)
+```
+
+#### 4.1 Showng the Research Area
+```{r}
+# loading the data
+lidar_index <- st_read("Data/tileindex_2020/dc2020_dc_index.shp")
+lidar_index <- st_transform(lidar_index, 4326)
+
+# showing the index layer
+leaflet(lidar_index) %>%
+  addTiles() %>%
+  addPolygons(color = "#444444", weight = 1, smoothFactor = 0.5,
+    opacity = 1.0, fillOpacity = 0.05,
+    fillColor =NA,
+    highlightOptions = highlightOptions(color = "blue", weight = 2,
+      bringToFront = TRUE),
+            popup = paste("LiDAR Index: ", lidar_index$Index))
+```
+
+> The Research Tile
+
+```{r}
+las_index_tile = lidar_index[lidar_index$Index == 89, ]
+leaflet(las_index_tile)%>%
+  addTiles() %>%
+  addPolygons(color = "#444444", weight = 1, smoothFactor = 0.5,
+    opacity = 1.0, fillOpacity = 0.3,
+    fillColor ="green",
+    highlightOptions = highlightOptions(color = "blue", weight = 2,
+      bringToFront = TRUE),
+            popup = paste("Research Tile Index: ", las_index_tile$Index))
+```
+
+
+#### 4.2 Loading and Adjusting the LAZ Data
+
+```{r}
+# load laz file
+las_2020 = readLAS("Data/20200630_1219.laz")
+las_2022 = readLAS("Data/20220124_1219.copc.laz")
+
+# No need to set coordinate reference systems (CRS)
+# EPSG code is provided in the metadata: 4269
+# CRS("+init=epsg:4269")
+# epsg(las_2020) = 4269
+summary(las_2020)
+
+```
+
+```{r}
+summary(las_2022)
+```
+
+
+> Visualize
+
+```{r}
+# plot(las_2020)
+# plot(las_2022)
+```
+
+> The original laz data is stored in logitude and latitude, thus the data should be projected.
+
+```{r}
+# Here I use UTM projection in zone 17
+# utm_crs <- st_crs(paste0("+proj=utm +zone=17 +datum=WGS84 +units=m +no_defs"))
+
+# project the las data
+epsg_nad83_utm17n <- 26917
+temp_las = las_2020@data
+temp_coords <- as.data.frame(temp_las)
+temp_coords <- st_as_sf(temp_coords, coords = c("X", "Y"), crs = 4269)
+
+# Transform
+coords_utm <- st_transform(temp_coords, crs = epsg_nad83_utm17n)
+# coords_utm <- as.data.frame(coords_utm)
+xy_coords <- st_coordinates(coords_utm)
+head(xy_coords)
+
+# rewrite the x and y column in las data
+las_2020@data$X <- coords_utm$geometry[][1]
+las_2020@data$Y <- coords_utm$geometry[[2]]
+
+### Repeat for the 2022 data
+temp_las = las_2022@data
+temp_coords <- as.data.frame(temp_las)
+temp_coords <- st_as_sf(temp_coords, coords = c("X", "Y"), crs = 4269)
+
+# Transform
+coords_utm <- st_transform(temp_coords, crs = epsg_nad83_utm17n)
+coords_utm <- as.data.frame(coords_utm)
+
+# rewrite the x and y column in las data
+las_2022@data$X <- coords_utm$geometry[[1]][1]
+las_2022@data$Y <- coords_utm$geometry[[1]][2]
+```
+
+
+#### 4.3 Constructing DTM Model and Comparing
+
+> For this method, I use kriging interpolation method to generate DTM model from las data.
+
+```{r}
+# Interpolation with kriging
+dtm_2020 = grid_terrain(las_2020, res = 16.4042, algorithm = kriging(k = 40))
+dtm_2022 = grid_terrain(las_2022, res = 16.4042, algorithm = kriging(k = 40))
+
+## plot 2d
+# subplot the two model side by side
+tm_shape(dtm_2020)+
+tm_raster(style= "cont", palette=get_brewer_pal("Greys", plot=FALSE))+
+tm_layout(legend.outside = TRUE)
+
+tm_shape(dtm_2022)+
+tm_raster(style= "cont", palette=get_brewer_pal("Greys", plot=FALSE))+
+tm_layout(legend.outside = TRUE)
+
+```
+
+#### 4.4 Select the Water Area
+
+```{r}
+water_2020 <- filter_poi(normalized_t1, Classification == 9L)
+water_2022 <- filter_poi(normalized_t2, Classification == 9L)
+```
+
+#### 4.5 Compare the Two Result
+
+```{r}
+
+```
+
+
+### 5. Discussion
+
+#### 5.1 Analysing of the Result
+
+
+
+#### 5.2 Possible Application
+
+
+
+## Part II: Descriptive Questions
+
+### 1. Advantages and Complexities of 3D geovisualization
+
+> **Question: **
+>
+> 
+>
+> Critically analyze the advantages and complexities inherent in the utilization of 3D geovisualization.
+
+
+
+> **Answer: **
+>
+> 
+>
+> **Advantages:**
+>
+> 1. **Enhanced Spatial Understanding**:
+>    - 3D geovisualization provides a more intuitive way to interpret and navigate spatial data. It allows for a realistic representation of geographical areas, which can be crucial for urban planning, environmental management, and navigation.
+> 2. **Improved Data Integration**:
+>    - This technology enables the integration of various types of data into a single model. This can include topographical, infrastructural, and demographic data, improving the ability to make comprehensive assessments.
+> 3. **Interactive Analysis**:
+>    - Users can interact with the 3D models, exploring different layers and aspects of the data. This facilitates a deeper analysis and can lead to better decision-making.
+> 4. **Effective Communication Tool**:
+>    - 3D visualizations are highly effective for communicating complex spatial information to a non-technical audience, making it easier to visualize potential changes in the landscape or infrastructure projects.
+> 5. **Simulation and Forecasting**:
+>    - It allows for the simulation of environmental and urban changes, aiding in forecasting and planning for future developments or natural disasters.
+>
+> **Complexities:**
+>
+> 1. **Technical Requirements**:
+>    - 3D geovisualization software often requires high-performance computing resources and specialized knowledge to operate effectively, limiting access to well-funded organizations and individuals with technical expertise.
+> 2. **Data Accuracy and Quality**:
+>    - The accuracy of a 3D geovisualization is heavily dependent on the quality of the input data. Inaccurate or low-resolution data can lead to misleading representations.
+> 3. **Overwhelming Information**:
+>    - The amount of data that can be displayed in a 3D model can be overwhelming, potentially leading to confusion or misinterpretation if not well managed.
+> 4. **Interoperability Issues**:
+>    - There can be challenges in integrating data from different sources or software, which may use different standards and formats.
+> 5. **Legal and Ethical Concerns**:
+>    - Privacy issues arise when dealing with high-resolution geospatial data, especially in urban areas where individuals may be identifiable.
+> 6. **Maintenance and Updates**:
+>    - Keeping the 3D models updated with the latest data can be labor-intensive and costly.
+> 7. **Cognitive Load**:
+>    - Users may experience a high cognitive load as they need to understand complex interfaces and interpret dense spatial information.
+
+
+### 2. Assessment of the Trajectory of 3D Technology
+
+> **Question: **
+>
+> 
+>
+> Provide an assessment of the trajectory of 3D technology, including immersive environments, within the academic and professional landscape. (Maximum 4 paragraphs)
+
+> **Answer: **
+>
+> 
+>
+> In the GIS and geospatial sectors, 3D technology is on a trajectory toward becoming a standard tool for visualization and analysis. In academia, its use is deepening the understanding of geographic phenomena, allowing for simulations of environmental changes over time and providing students with a tangible view of theoretical concepts. The trajectory in education points to a more immersive learning experience where 3D and virtual reality (VR) technologies enable students to explore complex geospatial scenarios in an interactive manner.
+>
+> In the professional world, 3D GIS is increasingly critical for urban and regional planning, natural resources management, and in the execution of large-scale infrastructure projects. The technology allows for a comprehensive view of geographic data, including the z-axis (elevation), which is crucial for applications like flood risk assessment, line-of-sight analysis, and landscape modeling. Professionals are also using 3D geospatial data in conjunction with VR to create immersive simulations for better stakeholder engagement and decision-making support.
+>
+> The trajectory has seen a shift from static 3D models to dynamic systems that can handle real-time data streaming and user interaction. This evolution is partly due to advancements in hardware that can render complex models and software that can process large datasets more efficiently. These developments are converging with trends in big data and machine learning, providing predictive analytics and smarter modeling tools.
+>
+> Challenges such as data interoperability, accuracy, and the management of large datasets persist. However, the future trajectory seems focused on overcoming these through better standards and more powerful analytical tools. The integration of 3D geospatial data with emerging technologies such as the Internet of Things (IoT) and AI indicates a trend toward more automated, real-time geospatial analysis environments. This progress is expected to further embed 3D geovisualization into the fabric of both academic research and professional practice, leading to more sophisticated and accessible geospatial analysis tools.
+
+
