@@ -44,25 +44,20 @@ setwd("D:/UMich/Fall23/EAS648/Repo/Lab/02")
 >
 > Develop a research methodology guided by a LiDAR dataset (the one provided or data found from the list below) aimed at exploring its potential applications and insights. Reflect on the perspectives and revelations drawn from your visualization of this data.
 
+
+### 1. Research Question
 > **Description: **
 >
 > 
 >
 > In this section I decided to continue to use the provided dataset in class and 
 
-### 1. Research Question
 
-
-
-### 2. Literature Review
-
-
-
-### 3. Data Source and Method
+### 2. Data Source and Method
 
 > The major source of the LiDAR data used fot this 
 
-### 4. Implementation
+### 3. Implementation
 
 ```{r}
 # Requiring the library
@@ -84,7 +79,7 @@ library(leaflet)
 library(tmap)
 ```
 
-#### 4.1 Showng the Research Area
+#### 3.1 Showng the Research Area
 ```{r}
 # loading the data
 lidar_index <- st_read("Data/tileindex_2020/dc2020_dc_index.shp")
@@ -116,7 +111,7 @@ leaflet(las_index_tile)%>%
 ```
 
 
-#### 4.2 Loading and Adjusting the LAZ Data
+#### 3.2 Loading and Adjusting the LAZ Data
 
 ```{r}
 # load laz file
@@ -134,7 +129,13 @@ summary(las_2020)
 ```{r}
 summary(las_2022)
 ```
+> Select the water part of the data
 
+```{r}
+water_2020 = filter_poi(las_2020, Classification == 9L)
+water_2022 = filter_poi(las_2022, Classification == 9L)
+head(water_2020@data)
+```
 
 > Visualize
 
@@ -151,7 +152,7 @@ summary(las_2022)
 
 # project the las data
 epsg_nad83_utm17n <- 26917
-temp_las = las_2020@data
+temp_las = water_2020@data
 temp_coords <- as.data.frame(temp_las)
 temp_coords <- st_as_sf(temp_coords, coords = c("X", "Y"), crs = 4269)
 
@@ -161,67 +162,79 @@ coords_utm <- st_transform(temp_coords, crs = epsg_nad83_utm17n)
 xy_coords <- st_coordinates(coords_utm)
 head(xy_coords)
 
-# rewrite the x and y column in las data
-las_2020@data$X <- coords_utm$geometry[][1]
-las_2020@data$Y <- coords_utm$geometry[[2]]
+# overwrite the x and y column in las data
+# water_2020@data$X <- xy_coords[,"X"]
+# water_2020@data$Y <- xy_coords[,"Y"]
+# head(water_2020@data)
+```
 
+```{r}
 ### Repeat for the 2022 data
-temp_las = las_2022@data
+temp_las = water_2022@data
 temp_coords <- as.data.frame(temp_las)
 temp_coords <- st_as_sf(temp_coords, coords = c("X", "Y"), crs = 4269)
 
 # Transform
 coords_utm <- st_transform(temp_coords, crs = epsg_nad83_utm17n)
-coords_utm <- as.data.frame(coords_utm)
+# coords_utm <- as.data.frame(coords_utm)
+xy_coords <- st_coordinates(coords_utm)
+head(xy_coords)
 
-# rewrite the x and y column in las data
-las_2022@data$X <- coords_utm$geometry[[1]][1]
-las_2022@data$Y <- coords_utm$geometry[[1]][2]
+# overwrite the x and y column in las data
+# water_2022@data$X <- xy_coords[,"X"]
+# water_2022@data$Y <- xy_coords[,"Y"]
+# head(las_2022@data)
+
+# remove the unused variables
+rm(las_2020, las_2022, temp_coords, temp_las, xy_coords, coords_utm)
+ls()
 ```
 
 
-#### 4.3 Constructing DTM Model and Comparing
-
-> For this method, I use kriging interpolation method to generate DTM model from las data.
+#### 3.3 Constructing DTM Model and Comparing
 
 ```{r}
-# Interpolation with kriging
-dtm_2020 = grid_terrain(las_2020, res = 16.4042, algorithm = kriging(k = 40))
-dtm_2022 = grid_terrain(las_2022, res = 16.4042, algorithm = kriging(k = 40))
+# Interpolation with TIN
+dtm_2020 = grid_terrain(water_2020, algorithm = knnidw(k = 10L, p = 2))
+View(dtm_2020)
+dtm_2022 = grid_terrain(water_2022, res = 3, algorithm = tin())
 
 ## plot 2d
+dtm_2020_df = as.data.frame(dtm_2020)
+ggplot(dtm_2020_df) +
+    geom_histogram(aes(Z)) +
+    xlab("DTM Elevation Value (m)") +
+    ggtitle("Distribution of DTM Values")
+
+plot(dtm_2020)
 # subplot the two model side by side
-tm_shape(dtm_2020)+
-tm_raster(style= "cont", palette=get_brewer_pal("Greys", plot=FALSE))+
-tm_layout(legend.outside = TRUE)
-
-tm_shape(dtm_2022)+
-tm_raster(style= "cont", palette=get_brewer_pal("Greys", plot=FALSE))+
-tm_layout(legend.outside = TRUE)
+# tm_shape(dtm_2020)+
+# tm_raster(style= "cont", palette=get_brewer_pal("Greys", plot=FALSE))+
+# tm_layout(legend.outside = TRUE)
+# 
+# tm_shape(dtm_2022)+
+# tm_raster(style= "cont", palette=get_brewer_pal("Greys", plot=FALSE))+
+# tm_layout(legend.outside = TRUE)
 
 ```
 
-#### 4.4 Select the Water Area
+#### 3.5 Compare the Two Result
 
 ```{r}
-water_2020 <- filter_poi(normalized_t1, Classification == 9L)
-water_2022 <- filter_poi(normalized_t2, Classification == 9L)
-```
-
-#### 4.5 Compare the Two Result
-
-```{r}
-
+# change_detection <- raster::overlay(dtm_2020, dtm_2022, fun = function(x, y) { return(y - x) })
+# 
+# # Visualize the changes
+# plot(change_detection)
 ```
 
 
-### 5. Discussion
+### 4. Discussion
 
-#### 5.1 Analysing of the Result
+#### 4.1 Analysing of the Result
 
 
 
-#### 5.2 Possible Application
+#### 4.2 Possible Application
 
 
 
