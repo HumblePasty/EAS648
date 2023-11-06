@@ -18,6 +18,8 @@ setwd("D:/UMich/Fall23/EAS648/Repo/Lab/02")
 
 # EAS 648 Lab Assignment 2
 
+> **Links: **
+>
 > **Course Repository**: https://github.com/HumblePasty/EAS648
 >
 > **Lab02 Webpage**: https://humblepasty.github.io/EAS648/Lab/02/
@@ -50,12 +52,20 @@ setwd("D:/UMich/Fall23/EAS648/Repo/Lab/02")
 >
 > 
 >
-> In this section I decided to continue to use the provided dataset in class and 
+> In this section I created a research methodology as required for change detection using LiDAR data.
 
 
-### 2. Data Source and Method
+### 2. Data Source
 
-> The major source of the LiDAR data used fot this 
+> The LiDAR data used for this research methodology example came from NOAA Digital Coast (https://coast.noaa.gov/digitalcoast/data/)
+>
+> The following implemented example of change detection is based on LiDAR data collected over Washington DC in year 2020 and year 2022. The two dataset used is:
+>
+> - 2020 DC OCTO Lidar (https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/9492/index.html)
+> - 2022 DC OCTO Lidar (https://noaa-nos-coastal-lidar-pds.s3.amazonaws.com/laz/geoid18/9837/index.html)
+>
+> The georeferencing on the files refers to generic NAD83 ([EPSG code 4269](https://epsg.org/crs_4269/NAD83.html)). All files are in a more recent realization of NAD83 such as NAD83(CORS96), NAD83(HARN), NAD83(NSRS2007), or NAD83(2011).
+
 
 ### 3. Implementation
 
@@ -81,25 +91,40 @@ library(tmap)
 
 #### 3.1 Showng the Research Area
 ```{r}
-# loading the data
-lidar_index <- st_read("Data/tileindex_2020/dc2020_dc_index.shp")
-lidar_index <- st_transform(lidar_index, 4326)
+# loading the tile index for 2020
+lidar_index_2020 <- st_read("Data/tileindex_2020/dc2020_dc_index.shp")
+lidar_index_2020 <- st_transform(lidar_index_2020, 4326)
 
-# showing the index layer
-leaflet(lidar_index) %>%
+# loading the tile index for 2022
+lidar_index_2022 <- st_read("Data/tileindex_2022/dc2022_wash_dc_index.shp")
+lidar_index_2022 <- st_transform(lidar_index_2020, 4326)
+
+# showing the index layer for 2020
+par(mfrow = c(1, 2))
+leaflet(lidar_index_2020) %>%
   addTiles() %>%
   addPolygons(color = "#444444", weight = 1, smoothFactor = 0.5,
     opacity = 1.0, fillOpacity = 0.05,
     fillColor =NA,
     highlightOptions = highlightOptions(color = "blue", weight = 2,
       bringToFront = TRUE),
-            popup = paste("LiDAR Index: ", lidar_index$Index))
+            popup = paste("LiDAR Index: ", lidar_index_2020$Index))
+
+# showing the index layer for 2022
+leaflet(lidar_index_2022) %>%
+  addTiles() %>%
+  addPolygons(color = "#444444", weight = 1, smoothFactor = 0.5,
+    opacity = 1.0, fillOpacity = 0.05,
+    fillColor =NA,
+    highlightOptions = highlightOptions(color = "blue", weight = 2,
+      bringToFront = TRUE),
+            popup = paste("LiDAR Index: ", lidar_index_2022$Index))
 ```
 
 > The Research Tile
 
 ```{r}
-las_index_tile = lidar_index[lidar_index$Index == 89, ]
+las_index_tile = lidar_index_2020[lidar_index_2020$Index == 89, ]
 leaflet(las_index_tile)%>%
   addTiles() %>%
   addPolygons(color = "#444444", weight = 1, smoothFactor = 0.5,
@@ -115,26 +140,22 @@ leaflet(las_index_tile)%>%
 
 ```{r}
 # load laz file
-las_2020 = readLAS("Data/20200630_1219.laz")
-las_2022 = readLAS("Data/20220124_1219.copc.laz")
+# las_2020 = readLAS("Data/20200630_1219.laz")
+# las_2022 = readLAS("Data/20220124_1219.copc.laz")
+
+las_2020_new = readLAS("Data/AnotherTile/20220124_1914.copc.laz")
+las_2022_new = readLAS("Data/AnotherTile/20200630_1914.laz")
 
 # No need to set coordinate reference systems (CRS)
 # EPSG code is provided in the metadata: 4269
 # CRS("+init=epsg:4269")
 # epsg(las_2020) = 4269
-summary(las_2020)
+summary(las_2020_new)
 
 ```
 
 ```{r}
-summary(las_2022)
-```
-> Select the water part of the data
-
-```{r}
-water_2020 = filter_poi(las_2020, Classification == 9L)
-water_2022 = filter_poi(las_2022, Classification == 9L)
-head(water_2020@data)
+summary(las_2022_new)
 ```
 
 > Visualize
@@ -152,7 +173,7 @@ head(water_2020@data)
 
 # project the las data
 epsg_nad83_utm17n <- 26917
-temp_las = water_2020@data
+temp_las = las_2020_new@data
 temp_coords <- as.data.frame(temp_las)
 temp_coords <- st_as_sf(temp_coords, coords = c("X", "Y"), crs = 4269)
 
@@ -163,14 +184,16 @@ xy_coords <- st_coordinates(coords_utm)
 head(xy_coords)
 
 # overwrite the x and y column in las data
-# water_2020@data$X <- xy_coords[,"X"]
-# water_2020@data$Y <- xy_coords[,"Y"]
-# head(water_2020@data)
+las_2020_new@data$X <- xy_coords[,"X"]
+las_2020_new@data$Y <- xy_coords[,"Y"]
+head(las_2020_new@data)
+# plot(las_2020_new, color = "Z")
 ```
+
 
 ```{r}
 ### Repeat for the 2022 data
-temp_las = water_2022@data
+temp_las = las_2022_new@data
 temp_coords <- as.data.frame(temp_las)
 temp_coords <- st_as_sf(temp_coords, coords = c("X", "Y"), crs = 4269)
 
@@ -181,40 +204,56 @@ xy_coords <- st_coordinates(coords_utm)
 head(xy_coords)
 
 # overwrite the x and y column in las data
-# water_2022@data$X <- xy_coords[,"X"]
-# water_2022@data$Y <- xy_coords[,"Y"]
-# head(las_2022@data)
+las_2022_new@data$X <- xy_coords[,"X"]
+las_2022_new@data$Y <- xy_coords[,"Y"]
+head(las_2022_new@data)
+# plot(las_2022_new, color = "Z")
+
+```
+
+> Select the water part of the data
+
+```{r}
+# water_2020 = filter_poi(las_2020, Classification == 9L)
+# water_2022 = filter_poi(las_2022, Classification == 9L)
+
+water_2020 = filter_poi(las_2020_new, Classification == 9L)
+water_2022 = filter_poi(las_2022_new, Classification == 9L)
+
+head(water_2020@data)
 
 # remove the unused variables
-rm(las_2020, las_2022, temp_coords, temp_las, xy_coords, coords_utm)
+# rm(las_2020_new, las_2022_new, temp_coords, temp_las, xy_coords, coords_utm)
 ls()
 ```
 
+#### 3.3 Constructing DSM Model and Comparing
 
-#### 3.3 Constructing DTM Model and Comparing
+> ERROR unresolved: Cannot create DTM / DSM model with the following error:
+>
+> ! Loop 0 is not valid: Edge 29 crosses edge 31
+> 
+> Note: I debuged for a whole day and cannot solve the problem successfully. This error possibly came from projection. The original data is stored in latitude and longitude. After projection the structure of the points may be distorted, causing crossing error. I'm stull looking for solution.
+>
+> I continued to implement the rest of the method with the assumed normal result. To export HTML correctly, I commented the rest of the code.
 
 ```{r}
-# Interpolation with TIN
-dtm_2020 = grid_terrain(water_2020, algorithm = knnidw(k = 10L, p = 2))
-View(dtm_2020)
-dtm_2022 = grid_terrain(water_2022, res = 3, algorithm = tin())
+# Construct DTM with KNN, TIN or kriging, errors
+# dtm_2020 = grid_terrain(las_2020_new, res = 1, knnidw(k = 6, p = 2), keep_lowest = FALSE)
+# dtm_2020 <- grid_terrain(las_2020_new, res = 3, algorithm = tin())
+# dtm_2020 <- grid_terrain(las_2020_new, res = 16.4042, algorithm = kriging(k = 40))
 
-## plot 2d
-dtm_2020_df = as.data.frame(dtm_2020)
-ggplot(dtm_2020_df) +
-    geom_histogram(aes(Z)) +
-    xlab("DTM Elevation Value (m)") +
-    ggtitle("Distribution of DTM Values")
-
-plot(dtm_2020)
-# subplot the two model side by side
-# tm_shape(dtm_2020)+
-# tm_raster(style= "cont", palette=get_brewer_pal("Greys", plot=FALSE))+
-# tm_layout(legend.outside = TRUE)
+# Constructing DSM
+# plot(las_2020_new)
+# water_dsm_2020 <- grid_canopy(las_2020_new, res = 3, pitfree(c(0,2,5,10,15)))
+# water_dsm_2022 <- grid_canopy(water_2022, res = 5, pitfree(c(0,5,5,10,15)))
 # 
-# tm_shape(dtm_2022)+
-# tm_raster(style= "cont", palette=get_brewer_pal("Greys", plot=FALSE))+
-# tm_layout(legend.outside = TRUE)
+# ## plot 2d
+# dtm_2020_df = as.data.frame(dtm_2020)
+# ggplot(dtm_2020_df) +
+#     geom_histogram(aes(Z)) +
+#     xlab("DTM Elevation Value (m)") +
+#     ggtitle("Distribution of DTM Values")
 
 ```
 
@@ -223,7 +262,7 @@ plot(dtm_2020)
 ```{r}
 # change_detection <- raster::overlay(dtm_2020, dtm_2022, fun = function(x, y) { return(y - x) })
 # 
-# # Visualize the changes
+# Visualize the changes
 # plot(change_detection)
 ```
 
@@ -232,11 +271,20 @@ plot(dtm_2020)
 
 #### 4.1 Analysing of the Result
 
+> Due to unresolved bug, I was not able to see the change detection directly. Here I inserted two screencap of water LiDAR point in 2020 and 2022 to compare directly.
+
+![Water 2020](Screenshot\water_2020.png)
+
+![Water 2022](Screenshot\water_2022.png)
 
 
 #### 4.2 Possible Application
 
-
+> The above method provides a simple example of how change detection based on LiDAR data can be used on water body. On a larger scale, change detection based on LiDAR can also be used for:
+>
+> 1. **Measuring Elevation Changes**: It can detect subtle changes in elevation and topography around water bodies, which is crucial for understanding erosion, sediment deposition, and the overall geomorphology of a watershed.
+> 2. **Volume and Depth Analysis**: By creating accurate 3D models of a water body's basin, LiDAR data can be used to calculate volume and depth, which are vital for water resource management and modeling water flow.
+> 3. **Coastline Management**: LiDAR assists in monitoring coastline changes due to natural processes like erosion or human activities, which is crucial for coastal management and mitigation planning.
 
 ## Part II: Descriptive Questions
 

@@ -13,7 +13,7 @@ Repository for codes in EAS 648: Advanced Geovisualization, University of Michig
 ## Compatibility
 
 - IDE: RStudio **2023.06.2** Build 561
-- R: v4.3.1
+- R: v.4.3.1
 
 
 
