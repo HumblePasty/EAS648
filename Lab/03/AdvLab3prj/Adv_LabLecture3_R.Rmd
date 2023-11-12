@@ -1,0 +1,449 @@
+---
+title: "R - Animation"
+author: "Derek Van Berkel"
+date: "3/26/2020"
+output: html_document
+---
+
+
+## Spatial Temporal analysis in R
+R's versatility and extensive ecosystem of packages make it a powerful tool for studying the dynamic interplay of space and time in data.
+
+### Data to download
+Download the project folder from canvas for this lab. We will be using the packages ```ggplot()``` and ```gganimate()``` to explore spatial dimensions ```gganimate``` is an extension of the grammar of graphics, as implemented by the ggplot2 package, that adds support for declaring animations using an API familiar to users of ggplot2.
+
+```{r}
+library(readr)
+library(ggplot2)
+library(ggthemes)
+library(gganimate)
+library(foreign)
+library(dplyr)
+library(rnaturalearth)
+library(rnaturalearthdata)
+library(gifski)
+library(lubridate)
+#library(tidyverse)
+library(wesanderson)
+
+```
+
+1. Let's open the data 
+
+```{r}
+MichFlickr <- read.csv("MichiganFlickr.csv")
+```
+
+2. First let's look at distribution of the data. To plot time series data, we need to change the formate so R understand that it should be read a date. We do this by coersing it using ```ad.Date``` or ```as.POSIXct``` function. This is part of the package ```Lubridate```, which is helpful for time series data. It can also be used to grab/parse specific parts of a date (e.g year, month etc.) 
+
+```{r}
+MichFlickr$date <- as.POSIXct(MichFlickr$dateupload, origin="1970-01-01")
+MichFlickr$date <- as.Date(format(MichFlickr$date, format="%Y-%m-%d"))
+###We will also give it a value. We want to count the number of photos 
+MichFlickr$year <- year(MichFlickr$date)
+MichFlickr$month <- month(MichFlickr$date, label = TRUE)
+MichFlickr$day <- day(MichFlickr$date)
+MichFlickr$count<- 1
+MichFlickr$Nature<- MichFlickr$predict_Na > 0.6
+
+
+```
+
+
+3. To plot time series, we need to summarise the photos per day. We will use the mutate, group_by and summarise function to create this new table 
+
+```{r}
+daily_photography <- MichFlickr %>%
+  mutate(day = as.Date(date, format="%Y-%m-%d")) %>%
+  group_by(day) %>% # group by the day column
+  summarise(total_photos=sum(count)) %>%  # calculate the SUM of all precipitation that occurred on each day
+  na.omit()
+head(daily_photography)
+
+
+```
+
+4. Now we can plot this data
+
+```{r}
+p <- ggplot(daily_photography, aes(x = day, y = total_photos)) +
+  geom_line(color = "#00AFBB", size = 1) + 
+  scale_x_date(date_labels = "%b")
+p
+```
+
+5. We can apply a minimum to make the plot more legible 
+
+```{r}
+## Let's set a minimum to omit the few points
+## in before 2005
+min <- as.Date("2005-1-1")
+max <- NA
+
+# Set axis limits c(min, max)
+p + scale_x_date(limits = c(min, max))
+```
+
+6. Let's smooth this data to see the trend of photographic sharing for the State.  
+
+```{r}
+p + stat_smooth(method = "loess", formula = y ~ x, size = 1) + 
+scale_x_date(limits = c(min, max))
+```
+
+We can also smooth it based on a spline function. 
+
+```{r}
+p + geom_smooth(method = lm, formula = y ~ splines::bs(x, 3), se = FALSE) + 
+scale_x_date(limits = c(min, max))
+
+```
+
+7. We can also graph different categories of data at the same time. Here we can distinguish between nature and non-nature photographs.
+
+```{r}
+daily_nature <- MichFlickr %>%
+  mutate(day = as.Date(date, format="%Y-%m-%d")) %>%
+  group_by(day, Nature) %>% # group by the day column
+  summarise(total_photos=sum(count))
+
+ggplot(daily_nature, aes(x = day, y = total_photos)) + 
+  geom_line(aes(color = Nature), size = 1) +
+  scale_color_manual(values = c("#00AFBB", "#E7B800")) +
+  scale_x_date(limits = c(min, max)) +
+  theme_minimal()
+```
+
+7.Let's check if there is a monthly pattern of sharing photograph through Flickr. First we will use the ```mutate()``` function to parse the month and year from the date data. Here we are using the lubridate function to grab this data. [Here](https://rawgit.com/rstudio/cheatsheets/master/lubridate.pdf) is a cheatsheet for the lubridate package. We will summerize the total number of photographs based on the year and month using group_by (sometimes there are issues with this function due to different package dependancies dplyer and ggplot).  
+
+```{r}
+daily_monthly <- daily_photography %>%
+    mutate(month =  month(ymd(daily_photography$day), label = TRUE, abbr = FALSE),
+           year  = year(as.Date(day, format = "%Y-%m-%d"))) %>%
+    group_by(year,month) %>%
+    summarise(total.qty = sum(total_photos)) 
+daily_monthly
+
+```
+
+8. Now that we have summarized this data in to another dataframe we can plot the different years of photography by month. 
+
+```{r}
+daily_monthly  %>%
+    filter(year > 2004)  %>% 
+    ggplot(aes(x = month, y = total.qty, group = year)) +
+    geom_line(aes(color = as.factor(year))) +
+    scale_color_discrete() + 
+    labs(title = "Total Flickr Photographs for Michigan", x = "", y = "Total Photographs",
+         subtitle = "Activity is highest for the summer months") +
+   theme_classic()
+```
+
+9. We can also do a similar weekly analysis. First we make dataframe that summerizes the data per week  
+
+```{r}
+weekly <- daily_photography %>%
+    mutate(weekday =  wday(ymd(daily_photography$day), label = TRUE, abbr = FALSE),
+           year  = year(as.Date(day, format = "%Y-%m-%d"))) %>%
+    group_by(year,weekday) %>%
+    summarise(total.qty = sum(total_photos)) 
+weekly
+```
+
+Now we can plot this data. 
+
+```{r}
+weekly  %>%
+    filter(year > 2004)  %>% 
+    ggplot(aes(x = weekday, y = total.qty, group = year)) +
+    geom_line(aes(color = as.factor(year))) +
+    scale_color_discrete() + 
+    labs(title = "Total Flickr Photographs for Michigan", x = "", y = "Total Photographs",
+         subtitle = "Activity is highest on the weekends") +
+  theme_bw()
+```
+
+
+10. We can also look at peaks in time series data using the ggpmisc package, which was extension to ggplot. The extension emphasizes annotations and highlighting related to fitted models and data summaries. This is shown as text, tables and implemented using different equations. 
+ggplot methods. For example, label the peaks of time series using stat_peaks. First let organize the data to include the date, month and year for filter to specific time periods. Let's also grab only nature photographs.  
+
+```{r}
+library(ggpmisc)
+daily_nature_only <- MichFlickr %>%
+ mutate(year = year(as.Date(date, format = "%Y-%m-%d")), 
+        month =  month(ymd(date), label = TRUE, abbr = FALSE)) %>%
+  filter(Nature == TRUE) %>%
+  group_by(date, year, month) %>% # group by the day column
+  summarise(total_photos=sum(count)) 
+
+daily_nature_only
+
+```
+
+11. Now we will plot the peaks and valleys by adding the stat_peaks and stat_valleys argument to the typical ggplot format. The arguments indicate what color to give and the time series peaks and valleys. We also have to use the POSIXct.  
+
+```{r}
+daily_nature_only  %>%  
+    filter(year == '2011' & month=='December')  %>% 
+ggplot(aes(x = as.POSIXct(date), y = total_photos), as.numeric = FALSE) + 
+  geom_line() + 
+  stat_peaks(colour = "red") +
+  stat_peaks(geom = "text", colour = "red", angle = 45,
+               vjust = 1.5, hjust = 1,  x.label.fmt = "%d%B") +
+  stat_valleys(colour = "blue") +
+ stat_valleys(geom = "text", colour = "blue", angle = 360,
+             vjust = 1.5, hjust = 1,  x.label.fmt = "%d%B")
+```
+
+##Animating spatial data
+12. Now that we have analyzed the temporal patterns of this data, let's examine the spatio-temporal patterns. First we will grab some base data using the ```map_data``` function. 
+
+```{r}
+######Data for Michigan
+states <- map_data("state")
+mich <- subset(states, region == "michigan")
+mich <- states %>%
+  filter(region == "michigan")
+counties <- map_data("county")
+mich_county <- subset(counties, region == "michigan")
+
+
+ggplot(data = mich) + 
+  geom_polygon(aes(x = long, y = lat), fill = "palegreen", color = "black") + 
+  coord_fixed(1.3)
+```
+
+13. We can alter the data to another theme and also get rid of the weird line. 
+
+```{r}
+mich <- ggplot(data = mich, mapping = aes(x = long, y = lat, group = group)) + 
+  coord_fixed(1.3) + 
+  geom_polygon(color = "black", fill = "orange")
+mich
+
+mich + theme_classic()
+```
+
+14. We can add the counties
+
+```{r}
+mich + theme_classic() + 
+  geom_polygon(data = mich_county, fill = NA, color = "white") +
+  geom_polygon(color = "black", fill = NA)  # get the state border back on top
+```
+
+15. We might also want to omit the gradicule
+
+```{r}
+mich + theme_void() + 
+  geom_polygon(data = mich_county, fill = NA, color = "white") +
+  geom_polygon(color = "black", fill = NA) # get the state border back on top
+```
+
+16. Now let's process data that we want to animate
+
+```{r}
+MichFlickr$date <- as.Date(as.POSIXct(MichFlickr$dateupload, origin="1970-01-01"))
+#min <- as.Date("2008-01-01")
+#max  <- as.Date("2015-01-01")
+animateMich <- MichFlickr %>% 
+  filter( date >= as.Date('2010-01-01') & date <= as.Date('2010-12-31'))
+```
+
+17. Now we can animate the data using using the```animate``` function. In the plot we specify the boundary of Michigan and the counties.   
+
+```{r}
+p2 <-mich + theme_void() + 
+        geom_polygon(data = mich_county, fill = NA, color = "white") +
+        geom_polygon(color = "black", fill = NA) + 
+        
+       geom_point(data = animateMich, aes(longitude, latitude), inherit.aes = FALSE) +
+        labs(title = 'Date: {format(frame_time, "%b %d %Y")}') +
+        transition_time(date) 
+
+animate(p2 + shadow_wake(0.1), fps=2)
+#animate(p2 + shadow_wake(0.1, size = 1, alpha = FALSE, colour = 'grey92'), fps=2)
+```
+
+18. As you can see there doesn't seem to be any distinguishable pattern. Let's filter the data to investigate if there are any patterns. 
+
+```{r}
+animateMichNature <-animateMich %>% 
+filter(date >= as.Date('2010-01-01') & date <= as.Date('2010-12-31') & Nature == "TRUE") 
+
+p3 <-mich + theme_void() + 
+        geom_polygon(data = mich_county, fill = NA, color = "white") +
+        geom_polygon(color = "black", fill = NA) + 
+        geom_point(data = animateMichNature, aes(longitude, latitude), inherit.aes = FALSE) +
+        labs(title = 'Date: {format(frame_time, "%b %d %Y")}') +
+        transition_time(date) 
+
+animate(p3 + shadow_wake(0.1), fps=2)
+```
+
+19. Once again there doesn't seem to be any distinguishable pattern. Can you filter the data to investigate if there are user that are skewing the data using similar code? 
+
+```{r}
+animateMichNature <-animateMich %>% 
+filter(date >= as.Date('2010-01-01') & date <= as.Date('2010-12-31') & Nature == "TRUE") 
+
+p3 <-mich + theme_void() + 
+        geom_polygon(data = mich_county, fill = NA, color = "white") +
+        geom_polygon(color = "black", fill = NA) + 
+        geom_point(data = animateMichNature, aes(longitude, latitude), inherit.aes = FALSE) +
+        labs(title = 'Date: {format(frame_time, "%b %d %Y")}') +
+        transition_time(date) 
+
+animate(p3 + shadow_wake(0.1), fps=2)
+```
+
+## Animating raster data(a bit of bodge)
+19. This is an alternative to using grass to animate raster data. First we read in the different Salt Lake city NLCD files. I added one step to define the different classes here using the ```ratify()``` function. This is bastically preparing the raster for a file that indicate the categories of classes of the data.
+
+```{r}
+library(terra)
+SL_2001<-as.factor(rast("NLCD_2001_SL.tif"))
+SL_2004<-as.factor(rast("NLCD_2004_SL.tif"))
+SL_2006<-as.factor(rast("NLCD_2006_SL.tif"))
+SL_2008<-as.factor(rast("NLCD_2008_SL.tif"))
+SL_2011<-as.factor(rast("NLCD_2011_SL.tif"))
+SL_2013<-as.factor(rast("NLCD_2013_SL.tif"))
+SL_2016<-as.factor(rast("NLCD_2016_SL.tif"))
+plot(SL_2001)
+```
+
+20. Here, we are assigning names to different classes, which will allow us to create a legend and apply a NLCD (National Land Cover Database) color palette to the data. To achieve this, we need to create a table that lists the values in the raster along with their corresponding names. Once this table is prepared, we can use the levels() function to apply these names to all the layers in the raster. This process is essential for visualizing and interpreting the data effectively.
+
+```{r}
+
+value <- levels(SL_2001)[[1]]$ID
+# landcoverDesc <- c("Open Water", "Developed, Open Space", "Developed, Low Intensity", "Developed, Medium Intensity", "Developed, High Intensity","Barren Land (Rock/Sand/Clay)","Deciduous Forest", "Evergreen Forest", "Mixed Forest","Scrub/Shrub","Grassland/Herbaceous","Pasture/Hay", "Cultivated Crops", "Woody Wetlands","Emergent Herbaceous Wetlands", "NA")
+landcoverDesc <- c("Open Water", "Developed, Open Space", "Developed, Low Intensity", "Developed, Medium Intensity", "Developed, High Intensity","Barren Land (Rock/Sand/Clay)","Deciduous Forest", "Evergreen Forest", "Mixed Forest","Scrub/Shrub","Grassland/Herbaceous","Pasture/Hay", "Cultivated Crops", "Woody Wetlands","Emergent Herbaceous Wetlands")
+
+cls <- data.frame(value, landcoverDesc)
+
+levels(SL_2001)<-levels(SL_2004)<-levels(SL_2006)<-levels(SL_2008)<-levels(SL_2011)<-levels(SL_2013)<-levels(SL_2016)<-cls
+
+
+```
+
+21. We need to apply colors to the raster like the names. Here we use `coltab()`
+
+```{r}
+##I defined the colors for the nlcd data. This works for the values (classes) in Salt Lake
+# colors <- c("#476BA0","#DDC9C9","#D89382","#ED0000", "#AA0000","#B2ADA3","#68AA63", "#1C6330","#B5C98E", "#CCBA7C", "#E2E2C1", "#DBD83D", "#AA7028", "#BAD8EA","#70A3BA", "#FFFFFF")
+colors <- c("#476BA0","#DDC9C9","#D89382","#ED0000", "#AA0000","#B2ADA3","#68AA63", "#1C6330","#B5C98E", "#CCBA7C", "#E2E2C1", "#DBD83D", "#AA7028", "#BAD8EA","#70A3BA")
+
+col <- data.frame(value, colors)
+
+coltab(SL_2001)<-coltab(SL_2004)<-coltab(SL_2006)<-coltab(SL_2008)<-coltab(SL_2011)<-coltab(SL_2013)<-coltab(SL_2016)<-col
+
+
+```
+
+22. Finally, we are using the `animate()` function to loop through the separate maps. To do this, we need to stack the raster on top of one anther using `c()`.  
+
+```{r}
+rasterStack<- c(SL_2001, SL_2004,SL_2006, SL_2008, SL_2011,SL_2013, SL_2016)
+#names(rasterStack) <- c("LU 2001", "LU 2004", "LU 2006" , "LU 2008", "LU 2011","LU 2013", "LU2016") 
+
+animate(rasterStack,pause=0.25)
+
+```
+
+## Towards projecting a time-series dataset and new ways to visualize this data
+We might want project data to give us an idea of what to expect in the future. For example climate model predict average temperature under different scenarios for helping understand the possible outcome of different policy interventions. We will use data from the GISTEMP Global Land-Ocean Temperature Index and the  Global component of Climate at a Glance (GCAG)
+
+GISTEMP is the Combined Land-Surface Air and Sea-Surface Water Temperature Anomalies [i.e. deviations from the corresponding 1951-1980 means]. GCAG data come from the Global Historical Climatology Network-Monthly (GHCN-M) data set and International Comprehensive Ocean-Atmosphere Data Set (ICOADS), which have data from 1880 to the present. These two datasets are blended into a single product to produce the combined global land and ocean temperature anomalies. The available timeseries of global-scale temperature anomalies are calculated with respect to the 20th century average.
+
+#### Citations 
+GISTEMP: NASA Goddard Institute for Space Studies (GISS) Surface Temperature Analysis, Global Land-Ocean Temperature Index.
+NOAA National Climatic Data Center (NCDC), global component of Climate at a Glance (GCAG).
+
+
+23. Read in the data
+```{r}
+
+GlobalTemp <- read.csv("monthly_csv.csv")
+## let's look at the GISTEMP 
+GISTEMP <- GlobalTemp %>%
+  filter(Source== "GISTEMP") %>%
+  mutate(year = as.Date(Date, format = "%Y-%m-%d")) 
+  
+
+```
+
+### Creating a time series
+
+23. We will utilize the ts() function to transform the data into an R time series object. The format for this function is ts(vector, start=, end=, frequency=), where 'start' and 'end' represent the times of the first and last observations, and 'frequency' indicates the number of observations per unit of time (e.g., 1 for annual, 4 for quarterly, 12 for monthly, etc.). This conversion is crucial for time-series analysis and allows us to work with time-related data more effectively.
+
+```{r}
+##Note, We have to invert the data using the - sign at the begining of the variable
+dat_ts <- ts(-GISTEMP$Mean, start = c(1880, 1), end = c(2016, 12), frequency = 12)
+```
+
+
+24. Plotting this time-series data is straightforward. Please note that this data is summarized on a monthly basis, but you can adjust the frequency variable as needed. This flexibility allows you to change the level of detail in your time-series analysis, making it adaptable to various time scales and research requirements.
+
+```{r}
+plot(dat_ts)
+```
+
+#### Naive Forecasting Method
+A simple method for forecasting, known as a "naive" forecast, involves using the most recent observation as the forecast for the next period. In our case, this means taking the global average temperature anomaly from the most recent period as the forecast for the next period. This method provides a straightforward and easy-to-implement approach. To implement this, we can use the naive() function from the forecast package. This model provides an estimate of its fit using a training dataset, and you can examine it using the summary() function. Additionally, you can create visualizations to better understand the projection and any errors in the model. It's worth noting that while this method is rarely the best forecasting technique, it often serves as a useful benchmark for more advanced forecasting methods. You can evaluate its accuracy using summary measures such as the Mean Absolute Percentage Error (MAPE), which quantifies the prediction accuracy of a forecasting method. It's important to remember that a MAPE exceeding 100% is not a good prediction and indicates substantial inaccuracy in the forecast.
+
+```{r}
+library(forecast)
+### h is the number of periods for forecasting
+### since we are using monthly data, we are projecting 1 year
+naive_mod <- naive(dat_ts, h = (5*12))
+summary(naive_mod)
+plot(naive_mod)
+```
+
+
+
+#### Simple Exponential Smoothing
+Simple Exponential Smoothing is an extension of the naive forecasting method. In this approach, forecasts are generated by calculating weighted averages of past observations, with the weights diminishing exponentially as the observations age. In simpler terms, greater weight is assigned to more recent observations, while less weight is given to older ones. This method acknowledges the value of recent data and is particularly useful when there is a trend or seasonality in the time series data. It allows for more adaptive and responsive forecasting compared to the naive method.
+
+```{r}
+se_model <- ses(dat_ts, h = (5*12))
+summary(se_model)
+plot(se_model)
+```
+
+### ARIMA
+ARIMA (Autoregressive Integrated Moving Average) modeling is one of the most widely used approaches for time series forecasting. While exponential smoothing models focus on describing trends and seasonality in the data, ARIMA models aim to capture the autocorrelations or dependencies within the data.
+
+The auto.arima() function is a tool that attempts to model the temporal trend in a time series. It automatically identifies and selects an appropriate ARIMA model by analyzing the autocorrelations and differences in the data. This automation makes it a convenient choice for time series analysis, especially when you have limited prior knowledge about the data's underlying structure.
+
+```{r}
+arima_model <- auto.arima(dat_ts)
+summary(arima_model)
+
+```
+
+Th actual data (red), and the fitted model can be visualized to show how well it does at measuring the temporal variability   
+```{r}
+plot(arima_model$x,col="red")
+lines(fitted(arima_model),col="blue")
+```
+
+We can similarly use the ARIMA model to forecast global temperature anomalies using the forecast() function.Please note that real-world forecasting often involves more in-depth data preparation and model tuning to ensure the accuracy of predictions, and it's crucial to use relevant historical temperature anomaly data to develop a reliable ARIMA model.
+```{r}
+fore_arima = forecast::forecast(arima_model, h=(25*12))
+plot(fore_arima)
+
+
+```
+
+## Assignment
+1. Conduct a comprehensive exploration of the spatiotemporal nuances within the provided social media dataset. This could, for example, investigate the underlying factors contributing to the observed differences between nature and non-nature photographs, or analyze the temporal and geographic variations that might account for specific trends in photograph sharing. You are expected to employ advanced statistical and geospatial techniques to delve deeper into this phenomenon. To substantiate your findings, create compelling visual representations that effectively illustrate the spatiotemporal dynamics at play. Provide a robust argument based on your analytical insights.
+
+2. Social media data include various sources of noise related to the frequency of sharing photographs that can obscure meaningful patterns. Your task is to develop a technique for noise reduction that surpasses basic filtering methods. Additionally, generate a visually engaging GIF that elucidates the spatiotemporal dynamics within the data. Alongside this, propose a hypothesis that elucidates the observed patterns based on your knowledge of the region and geographic processes. Your hypothesis should reflect your understanding of the factors of social media sharing and how they influence the temporal and spatial aspects of photograph sharing.
+
+
+
+
+
+

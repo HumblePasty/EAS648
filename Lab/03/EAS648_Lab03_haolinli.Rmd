@@ -1,0 +1,129 @@
+---
+title: "EAS648 Lab03"
+author: "Haolin Li (haolinli@umich.edu)"
+date: "2023-11-12"
+output: 
+  html_document:
+    output_file: "index.html"
+    toc: true
+    toc_float: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+setwd("D:/UMich/Fall23/EAS648/Repo/Lab/03")
+```
+
+
+> Assignment
+>
+> 1. Conduct a comprehensive exploration of the spatiotemporal nuances within the provided social media dataset. This could, for example, investigate the underlying factors contributing to the observed differences between nature and non-nature photographs, or analyze the temporal and geographic variations that might account for specific trends in photograph sharing. You are expected to employ advanced statistical and geospatial techniques to delve deeper into this phenomenon. To substantiate your findings, create compelling visual representations that effectively illustrate the spatiotemporal dynamics at play. Provide a robust argument based on your analytical insights.
+> 2. Social media data include various sources of noise related to the frequency of sharing photographs that can obscure meaningful patterns. Your task is to develop a technique for noise reduction that surpasses basic filtering methods. Additionally, generate a visually engaging GIF that elucidates the spatiotemporal dynamics within the data. Alongside this, propose a hypothesis that elucidates the observed patterns based on your knowledge of the region and geographic processes. Your hypothesis should reflect your understanding of the factors of social media sharing and how they influence the temporal and spatial aspects of photograph sharing.
+
+
+> Haolin's Note:
+>
+> For this assignment, I'll complete the task in 2 parts: 
+> - Part I: Spatiotemporal exploration of the Flikr dataset
+> - Part II: Explore a method for reducing niose for social media data
+
+
+# Part I: Spatiotemporal Exploration of MichiFlikr
+
+```{r}
+# Loading libraries
+library(readr)
+library(ggplot2)
+library(ggthemes)
+library(gganimate)
+library(foreign)
+library(dplyr)
+library(rnaturalearth)
+library(rnaturalearthdata)
+library(gifski)
+library(lubridate)
+library(wesanderson)
+library(ggpmisc)
+```
+
+## Loading MichiganFlikr
+
+```{r}
+# Loading the data:
+MichFlickr <- read.csv("AdvLab3prj/MichiganFlickr.csv")
+
+# Add columns
+MichFlickr$count<- 1
+# Is nature threshold: 0.6
+MichFlickr$Nature<- MichFlickr$predict_Na > 0.6
+
+head(MichFlickr)
+```
+
+
+## Plot Michigan with Counties
+
+```{r}
+# Get Michigan Map data
+states <- map_data("state")
+mich <- subset(states, region == "michigan")
+mich_county <- subset(map_data("county"), region == "michigan")
+
+# Plot Michigan with Counties
+mich = 
+  ggplot(data = mich, mapping = aes(x = long, y = lat, group = group)) +
+  coord_fixed(1.3) + 
+  geom_polygon(color = "black", fill = "orange")
+
+mich + theme_void() +
+  geom_polygon(data = mich_county, fill = NA, color = "white") + # add couties border
+  geom_polygon(color = "black", fill = NA) # get the state border back on top
+```
+
+## Plot Flikr Data for Analysis
+
+> Lab Instruction used data in 2010 and did not find any significant pattern. Here I try to use data in other time (year 2017).
+
+```{r}
+# Process the data
+MichFlickr$date <- as.Date(as.POSIXct(MichFlickr$dateupload, origin="1970-01-01"))
+#min <- as.Date("2008-01-01")
+#max  <- as.Date("2015-01-01")
+animateMich <- MichFlickr %>% 
+  filter( date >= as.Date('2017-01-01') & date <= as.Date('2017-12-31'))
+```
+
+> Plot time series
+
+```{r}
+p2 <-mich + theme_void() + 
+        geom_polygon(data = mich_county, fill = NA, color = "white") +
+        geom_polygon(color = "black", fill = NA) + 
+        
+       geom_point(data = animateMich, aes(longitude, latitude), inherit.aes = FALSE) +
+        labs(title = 'Date: {format(frame_time, "%b %d %Y")}') +
+        transition_time(date) 
+
+animate(p2 + shadow_wake(0.1), fps=2)
+```
+
+> Filter for natural photos
+
+```{r}
+animateMichNature <-animateMich %>% 
+filter(date >= as.Date('2017-01-01') & date <= as.Date('2017-12-31') & Nature == "TRUE") 
+
+p3 <-mich + theme_void() + 
+        geom_polygon(data = mich_county, fill = NA, color = "white") +
+        geom_polygon(color = "black", fill = NA) + 
+        geom_point(data = animateMichNature, aes(longitude, latitude), inherit.aes = FALSE) +
+        labs(title = 'Date: {format(frame_time, "%b %d %Y")}') +
+        transition_time(date) 
+
+animate(p3 + shadow_wake(0.1), fps=2)
+```
+
+
+# Part II: Noise reduction
+
+
