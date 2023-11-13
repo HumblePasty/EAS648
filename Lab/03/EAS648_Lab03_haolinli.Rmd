@@ -9,10 +9,21 @@ output:
     toc_float: true
 ---
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+```{r setup, include=FALSE, warning=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE)
+Sys.setenv(LANG = "en")
 setwd("D:/UMich/Fall23/EAS648/Repo/Lab/03")
 ```
+
+# EAS 648 Lab 03: Spatial Temporal analysis in R
+
+> **Links: **
+>
+> **Course Repository**: https://github.com/HumblePasty/EAS648
+>
+> **Lab02 Webpage**: https://humblepasty.github.io/EAS648/Lab/02/
+>
+> **Lab02 Repository**: https://github.com/HumblePasty/EAS648/tree/master/Lab/02
 
 
 > Assignment
@@ -23,14 +34,15 @@ setwd("D:/UMich/Fall23/EAS648/Repo/Lab/03")
 
 > Haolin's Note:
 >
-> For this assignment, I'll complete the task in 2 parts: 
+> For this assignment, I'll complete the task in 2 parts:
+>
 > - Part I: Spatiotemporal exploration of the Flikr dataset
 > - Part II: Explore a method for reducing niose for social media data
 
 
-# Part I: Spatiotemporal Exploration of MichiFlikr
+## Part I: Spatiotemporal Exploration of MichiFlikr
 
-```{r}
+```{r, warning=FALSE}
 # Loading libraries
 library(readr)
 library(ggplot2)
@@ -46,7 +58,7 @@ library(wesanderson)
 library(ggpmisc)
 ```
 
-## Loading MichiganFlikr
+### Loading MichiganFlikr
 
 ```{r}
 # Loading the data:
@@ -61,7 +73,7 @@ head(MichFlickr)
 ```
 
 
-## Plot Michigan with Counties
+### Plot Michigan with Counties
 
 ```{r}
 # Get Michigan Map data
@@ -80,7 +92,7 @@ mich + theme_void() +
   geom_polygon(color = "black", fill = NA) # get the state border back on top
 ```
 
-## Plot Flikr Data for Analysis
+### Plot Time-Serie Flikr Data
 
 > Lab Instruction used data in 2010 and did not find any significant pattern. Here I try to use data in other time (year 2017).
 
@@ -96,15 +108,15 @@ animateMich <- MichFlickr %>%
 > Plot time series
 
 ```{r}
-p2 <-mich + theme_void() + 
+p1 <-mich + theme_void() + 
         geom_polygon(data = mich_county, fill = NA, color = "white") +
         geom_polygon(color = "black", fill = NA) + 
         
        geom_point(data = animateMich, aes(longitude, latitude), inherit.aes = FALSE) +
         labs(title = 'Date: {format(frame_time, "%b %d %Y")}') +
-        transition_time(date) 
+        transition_time(date)
 
-animate(p2 + shadow_wake(0.1), fps=2)
+animate(p1 + shadow_wake(0.1), fps=2)
 ```
 
 > Filter for natural photos
@@ -113,17 +125,215 @@ animate(p2 + shadow_wake(0.1), fps=2)
 animateMichNature <-animateMich %>% 
 filter(date >= as.Date('2017-01-01') & date <= as.Date('2017-12-31') & Nature == "TRUE") 
 
+p2 <-mich + theme_void() + 
+        geom_polygon(data = mich_county, fill = NA, color = "white") +
+        geom_polygon(color = "black", fill = NA) + 
+        geom_point(data = animateMichNature, aes(longitude, latitude), inherit.aes = FALSE) +
+        labs(title = 'Natural Photos\nDate: {format(frame_time, "%b %d %Y")}') +
+        transition_time(date)
+
+animate(p2 + shadow_wake(0.1), fps=2)
+```
+
+### Filter non-natural photos
+
+```{r}
+animateMichNature <-animateMich %>% 
+filter(date >= as.Date('2017-01-01') & date <= as.Date('2017-12-31') & Nature == "FALSE") 
+
 p3 <-mich + theme_void() + 
         geom_polygon(data = mich_county, fill = NA, color = "white") +
         geom_polygon(color = "black", fill = NA) + 
         geom_point(data = animateMichNature, aes(longitude, latitude), inherit.aes = FALSE) +
-        labs(title = 'Date: {format(frame_time, "%b %d %Y")}') +
+        labs(title = 'Non-Natural Photos\nDate: {format(frame_time, "%b %d %Y")}') +
         transition_time(date) 
 
 animate(p3 + shadow_wake(0.1), fps=2)
 ```
 
+### Time and Spatial Analysis
 
-# Part II: Noise reduction
+> As analysed in the lab instruction, photo activity is usually highest in summer seasons
+
+```{r}
+MichFlickr$year <- year(MichFlickr$date)
+MichFlickr$month <- month(MichFlickr$date, label = TRUE)
+MichFlickr$day <- day(MichFlickr$date)
+
+# construct daily data
+daily_photography <- MichFlickr %>%
+  mutate(day = as.Date(date, format="%Y-%m-%d")) %>%
+  group_by(day) %>% # group by the day column
+  summarise(total_photos=sum(count)) %>%  # calculate the SUM of all precipitation that occurred on each day
+  na.omit()
+
+# construct monthly data
+daily_monthly <- daily_photography %>%
+    mutate(month =  month(ymd(daily_photography$day), label = TRUE, abbr = FALSE),
+           year  = year(as.Date(day, format = "%Y-%m-%d"))) %>%
+    group_by(year,month) %>%
+    summarise(total.qty = sum(total_photos))
+
+# plot the lines
+daily_monthly  %>%
+    filter(year > 2004)  %>% 
+    ggplot(aes(x = month, y = total.qty, group = year)) +
+    geom_line(aes(color = as.factor(year))) +
+    scale_color_discrete() + 
+    labs(title = "Total Flickr Photographs for Michigan", x = "", y = "Total Photographs",
+         subtitle = "Activity is highest for the summer months") +
+   theme_classic()
+```
+
+> With this result, I wonder if this trend have some spatial pattern, which is: 
+>
+> **Will photos taken in summer distribute more in certain area(s)?**
+>
+> For example, if people are more likely to come to norther Michigan in summer to take photos of the beatiful scenery of the forests, this should be shown on the map.
+
+> **Hence the hypothesis**:
+>
+> People tend to come to northern Michigan to capture beatiful scenery. Summer photos will distribute more in northern parts of Michigan, and photos taken in summer will have higher percentage of natural photos than those taken in winter.
+
+
+### Testing the hypothesis:
+
+#### STEP 1: Process the data
+
+```{r}
+# select photos taken in the summer
+MichFlickr_summer = MichFlickr %>%
+  mutate(season = case_when(
+      month(date) %in% c(3,4,5) ~ "spring",
+      month(date) %in% c(6,7,8) ~ "summer",
+      month(date) %in% c(9,10,11) ~ "fall",
+      TRUE ~ "winter"
+    )) %>%
+  filter(season == "summer")
+
+# select photos in the winter for comparison
+MichFlickr_winter = MichFlickr %>%
+  mutate(season = case_when(
+      month(date) %in% c(3,4,5) ~ "spring",
+      month(date) %in% c(6,7,8) ~ "summer",
+      month(date) %in% c(9,10,11) ~ "fall",
+      TRUE ~ "winter"
+    )) %>%
+  filter(season == "winter")
+
+head(MichFlickr_summer)
+```
+
+#### STEP 2: Plot the data points in animation
+
+> 
+
+```{r}
+# Plot the data in summer
+animateMichSummer <-MichFlickr_summer %>% 
+  filter(date >= as.Date('2017-01-01') & date <= as.Date('2017-12-31') & Nature == "TRUE")
+
+p4 <-mich + theme_void() + 
+        geom_polygon(data = mich_county, fill = NA, color = "white") +
+        geom_polygon(color = "black", fill = NA) + 
+        
+       geom_point(data = animateMichSummer, aes(longitude, latitude), inherit.aes = FALSE) +
+        labs(title = 'Natural Photos Taken in Summer, 2017\nDate: {format(frame_time, "%b %d %Y")}') +
+        transition_time(date)
+
+animate(p4 + shadow_wake(0.1), fps=2)
+```
+
+```{r}
+# Repeat for winter
+animateMichWinter <-MichFlickr_winter %>% 
+  filter(date >= as.Date('2018-01-01') & date <= as.Date('2018-12-31') & Nature == "TRUE")
+
+p5 <-mich + theme_void() + 
+        geom_polygon(data = mich_county, fill = NA, color = "white") +
+        geom_polygon(color = "black", fill = NA) + 
+        
+       geom_point(data = animateMichWinter, aes(longitude, latitude), inherit.aes = FALSE) +
+        labs(title = 'Natural Photos Taken in Winter, 2018\nDate: {format(frame_time, "%b %d %Y")}') +
+        transition_time(date)
+
+animate(p5 + shadow_wake(0.1), fps=2)
+```
+
+
+#### STEP 3: Analyse the spatial trend
+
+> Here I go with the simplest way: directly compare the mean latitude and mean logitude of the two photo sets
+
+```{r}
+# Compare the mean latitudes
+mean_lat_summer = mean(MichFlickr_summer$latitude)
+mean_lat_winter = mean(MichFlickr_winter$latitude)
+mean_lat_summer
+mean_lat_winter
+```
+
+```{r}
+# Compare the percentage of natural photos:
+percent_nat_summer = nrow(filter(MichFlickr_summer, Nature == "TRUE")) / nrow(filter(MichFlickr_summer, Nature == "FALSE"))
+percent_nat_winter = nrow(filter(MichFlickr_winter, Nature == "TRUE")) / nrow(filter(MichFlickr_winter, Nature == "FALSE"))
+percent_nat_summer
+percent_nat_winter
+```
+
+#### STEP 4: Discussion
+
+> As we can see with the result, photos taken in summer have higher mean latitude and higher percentage to be natural photos. Thus our hypothesis is supported.
+>
+> **TBD: More advanced analysis, such as spatial clustering of the data points, and compare the different clustering result (for example the centers of the clusters) of two photo sets**
+
+
+## Part II: Noise Reduction Method
+
+> Task:
+>
+> Social media data include various sources of noise related to the frequency of sharing photographs that can obscure meaningful patterns. Your task is to develop a technique for noise reduction that surpasses basic filtering methods. Additionally, generate a visually engaging GIF that elucidates the spatiotemporal dynamics within the data. Alongside this, propose a hypothesis that elucidates the observed patterns based on your knowledge of the region and geographic processes. Your hypothesis should reflect your understanding of the factors of social media sharing and how they influence the temporal and spatial aspects of photograph sharing.
+
+> **Feedback**:
+>
+> With all due respect, this task seems to be too vague and vast for a lab assignment. A little bit more clearification and instruction (such as giving paper for reference, specifying the tool packs) is REALLY helpful for us.
+
+### Discussion
+
+> To solve this task, first need to define what is noise data.
+>
+> The common cause of noise data by user may due to repeatedly uploading photos taken in similar areas within a short period of time.
+>
+> With this definiton, we can use filter function to eliminate the repeated data.
+
+### Implementation
+
+```{r}
+# 
+
+# Create new columns with rounded lat and lng
+MichFlickr = MichFlickr %>%
+  mutate(lat_rnd = round(latitude, 3), lng_rnd = round(longitude, 3))
+
+MichFlickr_denoised = MichFlickr %>%
+  distinct(owner, date, lat_rnd, lng_rnd, .keep_all = TRUE)
+```
+
+### Plot the denoised data
+
+```{r}
+animateMichDenoised <-MichFlickr_denoised %>% 
+  filter(date >= as.Date('2017-01-01') & date <= as.Date('2017-12-31') & Nature == "TRUE")
+
+p6 <-mich + theme_void() + 
+        geom_polygon(data = mich_county, fill = NA, color = "white") +
+        geom_polygon(color = "black", fill = NA) + 
+        
+       geom_point(data = animateMichDenoised, aes(longitude, latitude), inherit.aes = FALSE) +
+        labs(title = 'Denoised Photos in year 2017\nDate: {format(frame_time, "%b %d %Y")}') +
+        transition_time(date)
+
+animate(p6 + shadow_wake(0.1), fps=2)
+```
 
 
