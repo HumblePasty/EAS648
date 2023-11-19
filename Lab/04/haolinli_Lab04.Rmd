@@ -1,0 +1,194 @@
+---
+title: "EAS648 Lab04"
+author: "Haolin Li (haolinli@umich.edu)"
+date: "2023-11-14"
+output: 
+  html_document:
+    output_file: "index.html"
+    toc: true
+    toc_float: true
+---
+
+```{r setup, include=FALSE, warning=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE)
+Sys.setenv(LANG = "en")
+setwd("D:/UMich/Fall23/EAS648/Repo/Lab/04")
+```
+
+# EAS 648 Lab 04: Spatial Temporal analysis in R
+
+> **Links: **
+>
+> **Course Repository**: https://github.com/HumblePasty/EAS648
+>
+> **Lab04 Webpage**: https://humblepasty.github.io/EAS648/Lab/04/
+>
+> **Lab04 Repository**: https://github.com/HumblePasty/EAS648/tree/master/Lab/04
+
+
+> Assignment
+>
+> 1. Utilize sentiment analysis to study a textual document in a manner you find suitable. Select a lexicon library for assessing the sentiment of the dataset, such as determining whether it is positive, negative, or joyous. Present your findings using appropriate charts and provide an explanation of the results in 1-2 paragraphs.
+> 2. Conduct an analysis of ambiguous text within the dataset. Reflect on and provide examples of issues related to subjectivity, tone, context, polarity, irony, sarcasm, comparisons, and the use of neutral language in 2-3 paragraphs.
+
+
+> Haolin's Note:
+>
+> For this assignment, I'll complete the task in 2 parts:
+>
+> - Part I: Utilize sentiment analysis to study a textual document in a manner you find suitable.
+> - Part II: Conduct an analysis of ambiguous text within the dataset.
+
+## Part I
+
+> Task:
+>
+> Utilize sentiment analysis to study a textual document in a manner you find suitable. Select a lexicon library for assessing the sentiment of the dataset, such as determining whether it is positive, negative, or joyous. Present your findings using appropriate charts and provide an explanation of the results in 1-2 paragraphs.
+
+> Note: For this task, I used ... to analyse the 
+
+```{r}
+# using spotifyr to grab lyrics data
+# install.packages("spotifyr")
+# install_github('charlie86/spotifyr')
+library(spotifyr)
+
+# # using genius to lyrics, failed
+# library(geniusr)
+# library(dplyr)
+# library(tidytext)
+# 
+# Sys.setenv(GENIUS_API_TOKEN = 'MopeXJwy6Z5B5Jye3YCvgEYurwGxqFjjhkSrLZk2564jxgXTWjNtXxD94GllMwEc')
+# 
+# # Lyrics
+# thingCalledLoveLyrics <- get_lyrics_id(song_id = 81524)
+
+# switching to spotifyr library
+# STEP 1: setting token
+# get spotify access token:
+Sys.setenv(SPOTIFY_CLIENT_ID = '5a8451083ff143ada759c6395dd343e1')
+Sys.setenv(SPOTIFY_CLIENT_SECRET = 'aaaf9164b35d4fc1ada87f7e3a5f3b08')
+
+access_token = get_spotify_access_token()
+
+# get album data
+
+# Here I select "Halloqveen" by Qveen Herby
+# get album 
+Album_Songs = get_album_tracks("3g3P8dofBdBkEioDroTO2H", authorization = access_token)
+
+# spotifyr did not provide a function for fetching lyrics, so to get lyrics, I have to use a external api provided by a Github author:
+library(httr)
+library(jsonlite)
+
+# get the lyrics data
+lyrics_df = data.frame(track_number = character(), line_number = character(), track_title = character(), timeTag = character(), words = character(), stringsAsFactors = F)
+
+# use for loop to fetch lyrics song by song
+for (i in 1:nrow(Album_Songs)) {
+  # construct request header
+  # API Source: https://github.com/akashrchandran/spotify-lyrics-api
+  response = GET("https://spotify-lyric-api-984e7b4face0.herokuapp.com", query = list(trackid = Album_Songs$id[i], format = "lrc"))
+  
+  # parse the result
+  response = content(response, "parsed")
+  
+  # convert to data frame
+  line_index = 1
+  for (line in response$lines) {
+    new_row = data.frame(track_number = i, line_number = line_index, track_title = Album_Songs$name[i], timeTag = line$timeTag, words = line$words, stringsAsFactors = FALSE)
+    lyrics_df = rbind(lyrics_df, new_row)
+    line_index = line_index + 1
+  }
+}
+
+# can also save the lyrics file into csv
+write.csv(lyrics_df, "lyrics.csv", row.names = T)
+
+head(lyrics_df)
+
+```
+
+```{r}
+# load the sentiment library and the lexicon
+library(tidytext)
+library(textdata)
+library(tidyverse)
+
+head(get_sentiments("afinn"))
+# get_sentiments("bing")
+# get_sentiments("nrc")
+```
+
+```{r}
+# Combine the lyrics with lexicon
+
+# pre-process
+library(stringr)
+## we need to make sure that the lyrics are characters
+lyrics_df$words = as.character(lyrics_df$words)
+
+tidy_song <- lyrics_df %>%
+  group_by(track_title) %>%
+  ungroup() %>%
+  unnest_tokens(word,words)
+
+# join with lexicon value
+song_sentiment <- tidy_song %>%
+  inner_join(get_sentiments("bing"))%>%
+  count(track_title, index = line_number, sentiment)%>%
+  spread(sentiment, n, fill = 0)%>%
+  mutate(sentiment = positive - negative)
+
+```
+
+```{r}
+# plot the data
+ggplot(song_sentiment, aes(index, sentiment, fill = track_title)) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~track_title)
+```
+
+```{r}
+# show the most common positive and negative word
+word_counts <- tidy_song %>%
+  inner_join(get_sentiments("bing")) %>%
+  count(word, sentiment, sort = TRUE) %>%
+  ungroup()
+
+word_counts %>%
+  group_by(sentiment) %>%
+  top_n(10) %>%
+  ungroup() %>%
+  mutate(word = reorder(word, n)) %>%
+  ggplot(aes(word, n, fill = sentiment)) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~sentiment, scales = "free_y") +
+  labs(y = "Contribution to sentiment",
+       x = NULL) +
+  coord_flip()
+```
+
+```{r}
+# generate word clouds
+library(wordcloud)
+library(reshape2)
+library(RColorBrewer)
+
+tidy_song %>%
+  inner_join(get_sentiments("bing")) %>%
+  count(word, sentiment, sort = TRUE) %>%
+  acast(word ~ sentiment, value.var = "n", fill = 0) %>%
+  comparison.cloud(colors = c("red", "blue"),
+                   max.words = 100)
+```
+
+
+## Part II
+
+> Notes
+
+```{r}
+
+```
+

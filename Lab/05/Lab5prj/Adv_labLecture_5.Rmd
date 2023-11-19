@@ -1,0 +1,508 @@
+
+---
+title: "AdvLabLecture5"
+output: html_document
+---
+
+
+## Applied spatial analysis
+Spatial analysis seeks to explain patterns of behavior and its spatial expression in mathematical and geometric terms (i.e. locational analysis). It includes techniques which study phenomenon based on their topological, geometric, or geographic properties. New methodologies of spatial analysis include [geocomputation](http://www.geocomputation.org/) and [spatial statistical theory](https://link.springer.com/chapter/10.1007/978-94-017-3048-8_1). It often include large tables of spatial data obtained from censuses, surveys and raster layers. Spatial analysis simplifies this the huge amount of detailed information in order to extract the main trends. 
+
+*A Dictionary of Geography. Susan Mayhew. Oxford University Press, 2004. Oxford Reference Online. Oxford University Press.  Dartmouth College.  6 October 2005*
+
+### Spatial dependency or auto-correlation
+Spatial dependency is the co-variation (a relationship between two quantitative variables) of properties within geographic space. Characteristics at proximal locations appear to be correlated, either positively or negatively. Spatial dependency leads to spatial autocorrelation, which can be a problem in statistics. Like temporal autocorrelation, spatial autocorrelation violates standard statistical techniques that assume independence among observations. For example, regression analyses that do not compensate for spatial dependency can have unstable parameter estimates and yield unreliable significance tests. Spatial regression models capture these relationships and do not suffer from these weaknesses, but are computationally intensive. It is also appropriate to view spatial dependency as a source of information rather than something to be corrected.
+
+*Knegt, De; Coughenour, M.B.; Skidmore, A.K.; Heitkönig, I.M.A.; Knox, N.M.; Slotow, R.; Prins, H.H.T. (2010). "Spatial autocorrelation and the scaling of species–environment relationships". Ecology. 91 (8): 2455–2465. doi:10.1890/09-1359.1.*
+
+### Spatial autocorrelation
+Spatial autocorrelation statistics measure and analyze the degree of dependency among observations in a geographic space. Classic spatial autocorrelation statistics include Moran's I, Geary's C, Getis's G and spatial variograms. These statistics require measuring a spatial weights matrix that reflects the intensity of the geographic relationship between observations in a neighborhood, e.g., the distances between neighbors, or whether they fall into a specified directional class such as "west". Classic spatial autocorrelation statistics compare the spatial weights to the covariance relationship at pairs of locations. Spatial autocorrelation that is more positive than expected from random indicate the clustering of similar values across geographic space, while significant negative spatial autocorrelation indicates that neighboring values are more dissimilar than expected by chance, suggesting a spatial pattern similar to a chess board.
+
+### Exercise in spatial analysis
+
+
+To learn and apply spatial analysis, in spatial analysis, we will commence with an example in R utilizing data from Salt Lake City, Utah. This city has experienced significant urban development in recent decades, marked by substantial population growth, immigration, and increased housing demand. This surge has led to a notable 17.6 percent increase in urban impervious development from 2002 to 2010. 
+
+Here we will read-in Land Change data and other raster layers that might explain urban development
+
+Use the project data from canvas or download
+individual files [here](https://drive.google.com/open?id=18vLm2nKJ__Dmndw5QHa77p3efyU1jGOL)
+```{r}  
+library(terra)
+
+#first import the land cover/use data 
+NLCD_2001 <- rast("NLCD_2001_SL.tif")
+NLCD_2004 <- rast("NLCD_2004_SL.tif")
+NLCD_2006 <- rast("NLCD_2006_SL.tif")
+NLCD_2008 <- rast("NLCD_2008_SL.tif")
+NLCD_2011 <- rast("NLCD_2011_SL.tif")
+NLCD_2013 <- rast("NLCD_2013_SL.tif")
+NLCD_2016 <- rast("NLCD_2016_SL.tif")
+# Distance to parks and protected areas in km (Euclidian) for the study area
+Park_dist <- rast("Parks_dist_SL.tif")
+# Road density for a 1 km neighborhood
+Rd_dns1km <- rast("Rd_dns1km_SL.tif")
+# Distance to water bodies in km (Euclidean)
+WaterDist <- rast("WaterDist_SL.tif")
+# elevation
+DEM <- rast("DEM_SL.tif")
+```
+
+Plotting raster data is easier than vector data (although it is hard to control the color values). Simply use the function ```plot()```.
+
+```{r}
+plot(NLCD_2001)
+```
+
+## Building a geospatial database using different methods  
+In order to do an spatial analysis, we need to have dataset that describes these different layers. To do this we will stack 
+the raster layers using the [stack()](https://www.rdocumentation.org/packages/raster/versions/3.0-12/topics/stack) function. A RasterStack is a collection of RasterLayer objects with the same spatial extent and resolution. A RasterStack can be created from RasterLayer objects, or from raster files, or both. 
+
+```{r}
+allrasters <- c(NLCD_2001, NLCD_2004, NLCD_2006, NLCD_2008, NLCD_2011, NLCD_2013, NLCD_2016, Park_dist, Rd_dns1km, WaterDist,DEM)
+```
+
+We can look at all the rasters in the stack of call individual layer using the []
+```{r}
+#call single raster element
+allrasters[[1]]
+#to run a function on an individual raster e.g., plot 
+plot(allrasters[[1]])
+``` 
+
+
+In order to do spatial analysis of this data, we can change the stack into a dataframe. Basically we are extracting data at each point on the map. To do this, we use the ```as.data.frame()``` function 
+
+```{r}
+library(tidyverse)
+allrastersSL <- as.data.frame(allrasters, xy=TRUE)
+## Here we are filtering out the no data values (stored as 128)
+allrastersSL <- allrastersSL %>%
+  filter (NLCD_2001_SL != 128)
+head(allrastersSL)
+```
+
+Alternatively, we might want a random sample. Often this is necessary due to the huge amount of data that we are using (e.g. it would take a really long time to make a data frame at 30 m for a single state, it also adheres to statistical norms - don't use all your date if you don't have to). 
+
+## sampling
+In sampling a geospatial dataset many factors have to be taken into consideration including sample size, representativeness, sample bias, temporal factors, edge effects, level of aggregated, data collection methodology (procedures and equipment), sampling order or arrangement, and population representativeness.  In general, the full range of classical sampling issues must be considered coupled with some specifically spatial factors.
+
+The most commonly applied sampling schemes are those based on point sampling within a regular grid framework. The systematic sampling of this type, and variants such as that shown in the figure below each have there advantages and disadvantages. Those with a random offset, suffer from two major problems: (i) the sampling interval may coincide with some periodicity in the data being studied (or a related variable), resulting in substantial bias in the data; and (ii) the set of distances sampled is effectively fixed, hence important distance-related effects (such as dispersal, contagion etc.) may be missed entirely. Purely random sampling, has attractions from a statistical perspective, but as can be seen, marked clustering occurs whilst some areas are left without any samples at all. A number of solutions to these problems are used, often based on combining the coverage benefits of regular sampling with the randomness of true random selection. For example, the random offset from regular (random clustered) method gives each sample point being selected a random offset from the regularly spaced (x,y) coordinates. The degree of offset determines how regular or how random the sampled points will be. Note that some clustering of samples may still occur with this approach. In each of these examples the point selection is carried out without any prior knowledge of the objects to be sampled or the environment from which the samples are to be drawn. If ancillary information is available, it may alter the design selected. For example, if samples are sought that represent certain landscape classes (e.g. grassland, deciduous woodland, coniferous woodland, etc.), then it is generally preferable to stratify the samples by regions that have been separated identified as forming these various classes. Likewise, if 100 samples are to be taken, and it is known that certain parts of the landscape are much more varied than others (in respect of the data to be studied) then it makes sense to undertake more samples in the most varying regions.
+
+![](C:\Users\dbvanber\Dropbox (University of Michigan)\Geovis\Labs\Adv_Week_5\Sampling.png)
+
+We  will use the random sample function to grab a spatial random sample [sampleRandom()](https://rdrr.io/cran/raster/man/sampleRandom.html). Here we are random sampling 100 point for the Salt Lake region. ```sampleRandom()``` works different than ```sample()```. ```sample()``` sample returns an index of rows that still need to be obtained(see below). Here we are using ```xy=TRUE``` and ```sp=TRUE``` to return the spatial data. 
+
+```{r}
+library(leaflet)
+sampleSLrnd <- spatSample(allrasters, size=100, "random", cells=TRUE, xy=TRUE)
+head(sampleSLrnd)
+plot(sampleSLrnd$x, sampleSLrnd$y)
+
+```
+
+We can also sample based on a regular grid using [sampleRegular()](https://www.rdocumentation.org/packages/raster/versions/3.0-12/topics/sampleRegular) 
+
+```{r}
+sampleSLreg <- spatSample(allrasters, size=100,  "regular", cells=TRUE, xy=TRUE)
+head(sampleSLreg)
+plot(sampleSLreg$x, sampleSLreg$y)
+```
+
+### Assessing our dataset
+It is always a good idea to look at our data to assess that it adheres to statistical norms (e.g. normal distribution). We can use the simple ```summary()``` and ```hist()``` functions to evaluate data 
+
+
+#### Spatial autocorrelation
+We can also assess spatial dependency. First we need to transform the data into spatial weights matrix that indicates the  geographic relationship between observations. With our matrix, we can assess the specific spatial autocorrelation of our independent variables. We will simply use Moran's I, which is the most widely use. 
+```{r}
+# flatten the spatial data to a dataframe that has lat and long
+flat_data <- as.data.frame(sampleSLrnd)
+flat_data = na.omit(flat_data)
+# calculate distances between all the points,    
+dist_matrix <- as.matrix(dist(cbind(flat_data$x, flat_data$y)))
+# and generate a matrix of inverse distance weights.
+dist_matix.inv <- 1/dist_matrix
+diag(dist_matix.inv) <- 0
+```
+
+Now we can use the ```ape()``` package to measure spatial autocorrelation of the variables
+```{r}
+library(ape)
+# Moran.I(sampleSLrnd$Rd_dns1km_SL, dist_matix.inv)
+Moran.I(flat_data$Rd_dns1km_SL, dist_matix.inv)
+```
+
+
+### statistical analysis
+Now that we have some different samples of the data, let's do some analysis. We will be looking at the location characteristics of new development in Salt Lake. First we will identify the pixels that have change to urban classes between 2001 and 2016. 
+
+```{r}
+allrastersSL <- allrastersSL %>%
+    mutate(urbanChg = 
+             # Places that are not urban in 2001
+             (NLCD_2001_SL != 21 & NLCD_2001_SL != 22 & NLCD_2001_SL != 23 & NLCD_2001_SL != 24) 
+           &  # and
+             # is now urban in 2016
+             (NLCD_2016_SL == 21 | NLCD_2016_SL == 22  | NLCD_2016_SL == 23 | NLCD_2016_SL == 24)
+           ) 
+    
+```
+
+We can map the 
+```{r}
+ggplot(allrastersSL, aes(y=y, x=x, color=urbanChg)) +
+   geom_point(size=2, shape=15) +
+   theme() 
+
+```
+
+
+How much change did Salt Lake experience from 2001 to 2016:
+
+```{r}
+## calculate total new urban impervious for 2016
+newUrban <- (sum(as.numeric(allrastersSL$NLCD_2016_SL == 21 | allrastersSL$NLCD_2016_SL == 22 |allrastersSL$NLCD_2016_SL == 23 | allrastersSL$NLCD_2016_SL == 24))) - (sum(as.numeric(allrastersSL$NLCD_2001_SL == 21| allrastersSL$NLCD_2001_SL == 22| allrastersSL$NLCD_2001_SL == 23| allrastersSL$NLCD_2001_SL == 24)))
+## calculate total urban impervious for 2001
+urban2001 <- (sum(as.numeric(allrastersSL$NLCD_2001_SL == 21| allrastersSL$NLCD_2001_SL == 22| allrastersSL$NLCD_2001_SL == 23| allrastersSL$NLCD_2001_SL == 24)))
+## percentage increase in urban impervious
+newUrban/urban2001* 100
+```
+
+We can compare means and plot the variance between newly developed urban areas and the different variables. Let's look at the influence of the distance to protected areas.  
+
+```{r}
+allrastersSL %>%
+  filter(NLCD_2001_SL != 21| NLCD_2001_SL != 22| NLCD_2001_SL != 23| NLCD_2001_SL != 24) %>%
+ggplot(aes(x=urbanChg, y=Parks_dist_SL)) + 
+  geom_boxplot()
+```
+
+Let's look at the mean and variance of the variables that might shape where there is new development. We have to reshape the data to achieve this.  
+
+```{r}
+library(plyr)
+library(reshape2)
+library(plotly)
+
+SL <- allrastersSL %>%
+  # the non urban areas in 2001
+  filter(NLCD_2001_SL != 21 & NLCD_2001_SL != 22 & NLCD_2001_SL != 23 & NLCD_2001_SL != 24) 
+SL <- SL[10:14]
+# similar to tidy(), melt is a function to organize the data 
+SLmelt<-melt(SL)
+p <- ggplot(SLmelt, aes(x=urbanChg, y=value,fill=variable))+
+    geom_boxplot()+
+    facet_grid(.~variable)+
+    labs(x="X (binned)")+
+    theme(axis.text.x=element_text(angle=-90, vjust=0.4,hjust=1))
+p
+```
+
+### General linear models
+The generalized linear model (GLM) is a flexible generalization of ordinary linear regression that allows for response variables that have error non-normal distributions. The GLM generalizes linear regression by allowing the linear model to be related to the response variable via a link function and by allowing the magnitude of the variance of each measurement to be a function of its predicted value. 
+
+Ordinary linear regression predicts the expected value of a given unknown quantity (the response variable, a random variable) as a linear combination of a set of observed values (predictors). This implies that a constant change in a predictor leads to a constant change in the response variable (i.e. a linear-response model). This is appropriate when the response variable has a normal distribution (intuitively, when a response variable can vary essentially indefinitely in either direction with no fixed "zero value", or more generally for any quantity that only varies by a relatively small amount, e.g. human heights).
+
+For our analysis we will take a random sample of our entire dataset (this demonstrate an alternative random sample of a dataframe). The ```sample()``` function draw a random number indexes representing the rows of a dataframe. From this random sample, we can grab the actual data using the row and column conventions in r [](this is from our intro to r lecture in the first section). In cases were we have many absence data (area that were not develop) and few presence (developed), a common procedure is to retain all presence data and taking a smaller randomly sample of the absence. A ratio of 1:2 is common, but this is not a rule, and other ratios can be used and are often tested.   
+```{r}
+###Grab all the developed cells (presence)
+newUrban <- SL %>%
+  filter(urbanChg == TRUE)
+
+###Grab all the nondeveloped and not previously urban cells (absence)
+nonUrban <- SL %>%
+  filter(urbanChg == FALSE)
+
+###Get a random sample of the absence data  
+### that is twice as large as the presence data
+index <- sample(1:nrow(nonUrban), (round(nrow(newUrban)* 2)))
+SLsampleUrban <- nonUrban[index, ]
+
+### combine the original presence and absence data
+SLsample <- rbind(SLsampleUrban, newUrban)
+
+###Consider a train and testing sample by futher subsampling the data
+index <- sample(1:nrow(SL), (round(nrow(SL)* 0.01)))
+SLsample <- SL[index, ]
+
+###Consider making a training and testing dataset
+###This can reduce the computational burden 
+### It also is a robust goodness of fit method
+#SLsample <- SLsample %>% dplyr::mutate(id = row_number())
+#Create training set
+#train <- SLsample %>% sample_frac(.70)
+#Create test set
+#test  <- anti_join(SLsample, train, by = 'id')
+```
+
+Now that we have a sample, we can fit a model. Fitting a model in always uses the same format. You specify the type of model (e.g. lm, glm), then in brackets define the dependent variable followed by the ```~``` (tilde). After the tilde you name each of the independent variables with ```+``` between them. When these are defined, you use a comma and indicate the data and other specification like the model family you want to use (e.g. binomial, poisson, negative binomial)  
+```{r}
+fit <- glm(urbanChg ~ Parks_dist_SL + Rd_dns1km_SL + WaterDist_SL + DEM_SL,data=SLsample,family=binomial())
+summary(fit)
+
+```
+
+### Interpreting the model
+R will give an output that includes ```Estimate```, ```Std. Error```, ```z value``` and ```Pr(>|z|)```. The estimate are the coefficients of the predictors (the weight of influence on the independent variable). In a logistic regression these are called logits, and cannot be interpreted like a linear model. For our applied purpose, you can simply interpret the signs (-/+), which indicate a negative or positive relationship. One way to interpret the coefficients is to calculate standardized coefficients using the function ```beta.glm()``` using the ```library(reghelper)```. The "std. error" is the standard deviation of the coefficient point estimate in the GLM. It is a measure of uncertainty about this estimate - if it is too large, then you have a coefficient point estimate calculated with a lot of imprecision. The z-value is the regression coefficient divided by standard error. A good rule is to use a cut-off value of 2 which approximately corresponds to a two-sided hypothesis test with a significance level of 0.05. The ```Pr(>|z|)``` indicates whether the variable is significant for the model. 
+
+The null deviance shows how well the response variable is predicted by a model that includes only the intercept (grand mean). The residual deviance shows how well the response is predicted by the model when the predictors are included. From our example, it can be seen that the deviance goes down by 29435.1 - 9035.4 = 20399.7 when 4 predictor variables are added (note: degrees of freedom = no. of observations – no. of predictors) . This decrease in deviance is evidence of a significant increase in fit. The Akaike information criterion (AIC) is an information-theoretic measure that describes the quality of a model. It is best use to compare between models fitting the same dependent variable and sample. 
+
+
+### Goodness of fit 
+We can check the fit of the model by calculating the Area under the curve and the ROC. The Receiver Operating Characteristic (ROC) curve plots the true positive rate (Sensitivity) as a function of the false positive rate (100-Specificity) for different cut-off points. Each point on the ROC curve represents a sensitivity/specificity pair corresponding to a particular decision threshold. A test with perfect discrimination (no overlap in the two distributions) has a ROC curve that passes through the upper left corner (100% sensitivity, 100% specificity). Therefore the closer the ROC curve is to the upper left corner, the higher the overall accuracy of the test (Zweig & Campbell, 1993). The AUC can be defined as the probability that the fit model will score a randomly drawn positive sample higher than a randomly drawn negative sample. This is also equal to the value of the Wilcoxon-Mann-Whitney statistic. 
+
+```{r}
+## Loading required package: gplots
+library(ROCR)
+# plot a ROC curve for a single prediction run
+# and color the curve according to cutoff.
+pred <- prediction(predict(fit), SLsample$urbanChg)
+perf <- performance(pred,"tpr","fpr")
+plot(perf,colorize=TRUE)
+## A simpler way to understand these result is to calculate the
+## area under the curve(AUC). The closer this number is to 1, the
+## better your model fit
+auc_ROCR <- performance(pred, measure = "auc")
+auc_ROCR <- auc_ROCR@y.values[[1]]
+auc_ROCR
+```
+
+
+
+### Using our model to predict likely locations of development
+Here we use our predictors to estimate for each pixel the probability of development given our model
+```{r}
+predicted <- predict(allrasters, fit)
+```
+
+Now we can visualize this prediction
+
+```{r}
+plot(predicted)
+```
+
+
+
+## Cluster analysis
+Cluster analysis or clustering is the task of grouping a set of objects in such a way that objects in the same group (called a cluster) are more similar (in some sense) to each other than to those in other groups (clusters).
+
+```{r}
+library(fastcluster)
+library(graphics)
+library(ggplot2)
+library(ggdendro)
+```
+
+Here we are loading a dataset of different amenity characteristic for the entire US. I developed with dataset using a 10 km by 10 km grid using different sources of data (e.g. NLCD, [SEDAC](https://sedac.ciesin.columbia.edu/data/sets/browse), social media, [cultural monuments](https://www.nps.gov/subjects/nationalregister/data-downloads.htm)). An overview of the data can be found [here](https://drive.google.com/file/d/1SeHkvHCxCVk7F1FBt5_uWIDXqozl31Z-/view?usp=sharing)  
+
+```{r}
+library(sf)
+amenData<- st_read("AmenDataAll.shp")
+head(amenData)
+```
+
+###Get an overview of the data
+###look at the names and variables of the database
+
+Feel free to plot the data to explore some the varibles
+```{r}
+ggplot() + 
+  geom_sf(data = amenData, mapping = aes(fill = cstdstL), color = NA) + 
+  scale_fill_viridis_c(option = "plasma", trans = "sqrt") +
+  theme(legend.position = "none") +
+  ggtitle("Time to nearest urban Center (greater than 40000 people) in Seconds")
+
+```
+
+As we will be doing several operation that cannot use spatial data in the sf format, we will need to save the spatial attributes of the data. This will allow us to apply these spatial attribute after our analysis for mapping. Here we use function ```st_sfc()``` to the same geometry of the data.  
+
+```{r}
+st_geometry(amenData)
+geomData = st_sfc(amenData$geometry)
+```
+### Tranforming some data to make it meaningful and interpretable
+It is always a good idea to look at your data and transform when necessary (e.g. remove outliers, change variable that are in very different scales). Sometime this can also mean combining two variables or applying different functions to specific variables that you know will perform better with such transformations 
+
+#### Geographic transformations
+In geographic relationships, we might assume that the nearer we are to something the more important it is (i.e. there is not a spatial linear relationship with a location attribute). In order to represent this, we can log transform distance variable that we think has this nonlinear relationship. 
+
+```{r}
+amenData$ZooEmpDist_log <- log(amenData$ZooDistEmp + 0.00000001)
+amenData$HotelEmpDist_log <- log(amenData$HotelDistE + 0.00000001)
+amenData$HistMonDist_log <- log(amenData$HistMon_Di + 0.00000001)
+amenData$HighEdEmpDist_log <- log(amenData$HigherEdDi + 0.00000001)
+amenData$GolfEmpDist_log <- log(amenData$GolfDistEm + 0.00000001)
+```
+
+Here we are combining variables to test different hypotheses. In the first, we are normalizing total number of Flickr photographs by population, as we want to distinguish spatial anomalies of photography
+
+```{r}
+amenData$SocialNorm <- amenData$Nat_Flickr/(amenData$serPop10 + 1)
+amenData$HousingChg <- amenData$Urb2011 - amenData$Urb2001
+```
+
+#### reduce to only the data that we need
+In cluster analysis we must provide a dataframe or matrix of only the data that will be included in the model. This requires us to reduce our df to the variables that we want to examine. Remember that you cannot include factors in a cluster analysis
+```{r}
+amenDataDF<-amenData[,c("SocialNorm", "HousingChg", "Frst2011", "WaterPct", "distcoast", "DEM_max","DEM_range", "HikeLength","ZooEmpDist_log", "HotelEmpDist_log","HistMonDist_log", "HighEdEmpDist_log", "GolfEmpDist_log")]
+###if you want to add variable look at the names using: names(amenData)
+```
+
+We must also omit any ```NA``` (this may cause issues when applying geometry, so this might need to be applied to the sf object)
+
+```{r}
+## make sure there are no missing data
+amenDataDF <- na.omit(amenDataDF)
+## we need to make it into a normal dataframe to 
+## do the analysis
+amenDataDF <- as.data.frame(amenDataDF)[1:12]
+## calculate z-scores for the dataset
+db_scaled <- scale(amenDataDF)
+```
+
+### K-means clustering
+K-means is typical clustering technique that aims to partition n observations into k clusters in which each observation belongs to the cluster with the nearest mean (cluster centers or cluster centroid). k-means clustering minimizes within-cluster variances (squared Euclidean distances).
+
+Typically in kmeans you determine how many clusters to specify beforehand. This can be done by calculating the within groups sum of squares by number of clusters. Basically, we look for a bend in the plot similar to a scree test in factor analysis
+
+```{r}
+# Determine number of clusters
+wss <- (nrow(db_scaled)-1)*sum(apply(db_scaled,2,var))
+for (i in 2:15) wss[i] <- sum(kmeans(db_scaled,
+   centers=i)$withinss)
+plot(1:15, wss, type="b", xlab="Number of Clusters",
+  ylab="Within groups sum of squares")
+```
+
+The code is really straightforward, here we use the data frame that we built and the number of clusters that we determined above.
+
+```{r}
+# K-Means Cluster Analysis
+fit <- kmeans(db_scaled, 5) # 5 cluster solution
+```
+
+We can explore the result further by looking at the mean of each variable by the clusters. This gives us some indication of how each cluster is unique from the other (you may also want to plot this data and examine it using other summary statistics)
+```{r}
+# get cluster means
+aggregate(db_scaled,by=list(fit$cluster),FUN=mean)
+```
+
+When you are happy with your clustered groups, you can add the clustered variable to the orginal dataset
+
+```{r}
+# append cluster assignment
+amenData <- data.frame(amenData, fit$cluster)
+```
+
+In order to plot this data we need to steal the geometry from the original data and apply it to this dataset. We did this earlier. 
+
+```{r}
+st_geometry(amenData) <- geomData
+```
+
+Now we can plot the kmeans clusters. After visualizing the data, you might want to redo the analysis with other numbers of clusters.
+
+```{r}
+ggplot() + 
+  geom_sf(data = amenData, mapping = aes(fill = as.factor(fit.cluster)), color = NA) + 
+  theme(legend.position = "none") +
+  ggtitle("Clusters based on Kmeans")
+```
+
+
+### Hierarchical Clustering
+Hierarchical Clustering is a method of cluster analysis which seeks to build a hierarchy of clusters. It includes:
+
+* Agglomerative: each observation starts in its own cluster, and pairs of clusters are merged as one moves up the hierarchy.
+* Divisive: This is a "top-down" approach: all observations start in one cluster, and splits are performed recursively as one moves down the hierarchy (not using this method in class).
+
+There are different method for this agglomerative clustering. Here is a broad overview of the different methods:
+
+* *Complete linkage clustering*: computes all pairwise dissimilarities between the elements in cluster 1 and the elements in cluster 2, and considers the largest value (i.e., maximum value) of these dissimilarities as the distance between the two clusters. It tends to produce more compact clusters.
+* *Single linkage clustering*: It computes all pairwise dissimilarities between the elements in cluster 1 and the elements in cluster 2, and considers the smallest of these dissimilarities as a linkage criterion. It tends to produce long, “loose” clusters.
+* *Average linkage clustering*: It computes all pairwise dissimilarities between the elements in cluster 1 and the elements in cluster 2, and considers the average of these dissimilarities as the distance between the two clusters.
+* *Ward’s minimum variance method*: It minimizes the total within-cluster variance. At each step the pair of clusters with minimum between-cluster distance are merged.
+
+Here is a graphic that helps visualize the differences
+
+![Source: https://scikit-learn.org/stable/modules/clustering.html](C:\Users\dbvanber\Dropbox (University of Michigan)\Geovis\Labs\Adv_Week_5\sphx_glr_plot_linkage_comparison_0011.png)
+
+
+
+In order to conduct a hierarchical cluster analysis, we need to calculate the distance between our variable (e.g. each grid across the USA). This is based on the location in a data cloud of points. This is a highly intensive calculation, which will need us to utilize parallel processing. This is achieved using the ```library(parallelDist)```. We specify "euclidean", but there are other methods that will impact the results
+
+```{r}
+library(parallelDist)
+d <- parDist(db_scaled, method = "euclidean")
+```
+
+If this fails, we will have to subset the data for a specific state. To achieve this, we will employ a spatial join using st_join with our data, adding a state variable.
+
+```{r}
+states <- st_read("states.shp")
+##Let's make sure these data have the same projection
+states <- st_transform(states, st_crs(amenData))
+##test the same variables as above
+
+HCA <- amenData[,c("SocialNorm", "HousingChg", "Frst2011", "WaterPct", "distcoast", "DEM_max","DEM_range", "HikeLength","ZooEmpDist_log", "HotelEmpDist_log","HistMonDist_log", "HighEdEmpDist_log", "GolfEmpDist_log")]
+
+
+##Now we can join them together, but we only need the name of states 
+temp <- st_join(states[c("NAME", "geometry")], HCA)
+
+
+###Now we can filter to the state of interest
+Mich_scaled <- temp %>%
+  dplyr::filter(NAME == "Michigan") %>%
+  dplyr::select(SocialNorm, HousingChg, Frst2011, WaterPct, distcoast, DEM_max,DEM_range, HikeLength,ZooEmpDist_log, HotelEmpDist_log,HistMonDist_log, HighEdEmpDist_log, GolfEmpDist_log) %>%
+  st_drop_geometry() %>% 
+  scale()
+
+```
+Redo the distance matrix
+```{r}
+library(parallelDist)
+d <- parDist(Mich_scaled, method = "euclidean")
+```
+
+We are going to estimate clusters based on the ward's method. This aims to find compact, spherical clusters
+
+```{r}
+hclust.model <- hclust(na.omit(d), "ward.D")
+## other option include "complete", "single", "average"
+hclust.model
+```
+
+Now we can will visualize the dendrogram for interpreting groupings of clusters
+
+```{r}
+hcd_ward <- as.dendrogram(hclust.model)
+plot(hcd_ward, ylab = "Height", leaflab = "none")
+```
+
+Here we have different options for visualizing the data
+```{}
+## plot using rectangle ****NOTE: THIS TAKES A LONG TIME
+# plot(hcd_ward, type = "rectangle", ylab = "Height")
+## plot using triangle ****NOTE: THIS TAKES A LONG TIME
+#plot(hcd_ward, type = "triangle", ylab = "Height")
+###remove labels which are too dense anyways
+# Customized plot; remove labels for faster plotting
+###possible visual of the dendrogram that shows cutoff points
+#dend_data <- dendro_data(hcd_ward, type = "rectangle")
+```
+
+After inspecting the dendrogram, we can choose the number of clusters. Here we define these clusters. Unlike kmeans, we have calculated all the possible clusters for each 10km cell. This makes it quick to examine different break points
+
+```{r}
+groups <- cutree(hclust.model, k=12) # cut tree into clusters
+###Calculate means of variables based on cluster categories
+means <- aggregate(Mich_scaled,by=list(groups),FUN=mean)
+means 
+```
+
+
+## Assignment
+1. Analyze the Salt Lake City dataset. Fit a model that explains suitability for urban development (provide evidence of goodness of model fit). What characteristics contribute to urban development in Salt Lake? What variable might you add to better explain urban development. (1-2 paragraphs)
+2. Analyze the database of amenity landscape characteristics using a clustering technique. Choose variables based on a thematic inquiry of your choice. Visualize ad provide qualitative descriptions of the groups that you derive from the clustering techniques. Provide evidence of you characterizations. Provide a map of your cluster analysis. Give an explanation of the spatial distribution of these groups. (1-2 paragraphs)  
