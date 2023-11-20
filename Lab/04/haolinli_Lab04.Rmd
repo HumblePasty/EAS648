@@ -39,13 +39,25 @@ setwd("D:/UMich/Fall23/EAS648/Repo/Lab/04")
 > - Part I: Utilize sentiment analysis to study a textual document in a manner you find suitable.
 > - Part II: Conduct an analysis of ambiguous text within the dataset.
 
-## Part I
+<center>
+
+![Flow Chart](SentimentsAnalysis.png)
+
+[Flow Chart of Sentiment Analysis in R](https://www.tidytextmining.com/sentiment.html)
+
+</center>
+
+
+
+## Part I: Utilize sentiment analysis to study a textual document
 
 > Task:
 >
 > Utilize sentiment analysis to study a textual document in a manner you find suitable. Select a lexicon library for assessing the sentiment of the dataset, such as determining whether it is positive, negative, or joyous. Present your findings using appropriate charts and provide an explanation of the results in 1-2 paragraphs.
 
-> Note: For this task, I used ... to analyse the 
+> Note: For this task, I used Halloqveen' Qveen Herby for analysis
+
+## 1.1 Fetch Data from Spotify
 
 ```{r}
 # using spotifyr to grab lyrics data
@@ -72,10 +84,7 @@ Sys.setenv(SPOTIFY_CLIENT_SECRET = 'aaaf9164b35d4fc1ada87f7e3a5f3b08')
 access_token = get_spotify_access_token()
 
 # get album data
-
-# Here I select "Halloqveen" by Qveen Herby
-# get album 
-Album_Songs = get_album_tracks("3g3P8dofBdBkEioDroTO2H", authorization = access_token)
+Album_Songs = get_album_tracks("4g1ZRSobMefqF6nelkgibi", authorization = access_token)
 
 # spotifyr did not provide a function for fetching lyrics, so to get lyrics, I have to use a external api provided by a Github author:
 library(httr)
@@ -103,11 +112,16 @@ for (i in 1:nrow(Album_Songs)) {
 }
 
 # can also save the lyrics file into csv
-write.csv(lyrics_df, "lyrics.csv", row.names = T)
+# write.csv(lyrics_df, "lyrics.csv", row.names = T)
+lyrics_df = read.csv("lyrics.csv")
 
-head(lyrics_df)
+library(knitr)
+
+kable(head(lyrics_df))
 
 ```
+
+## 1.2 Sentiment Analysis by Songs
 
 ```{r}
 # load the sentiment library and the lexicon
@@ -149,6 +163,8 @@ ggplot(song_sentiment, aes(index, sentiment, fill = track_title)) +
   facet_wrap(~track_title)
 ```
 
+## 1.3 Sentiment Analysis by Words
+
 ```{r}
 # show the most common positive and negative word
 word_counts <- tidy_song %>%
@@ -184,11 +200,123 @@ tidy_song %>%
 ```
 
 
-## Part II
+## Part II: Conduct an analysis of ambiguous text within the dataset
 
-> Notes
+> Task:
+>
+> Conduct an analysis of ambiguous text within the dataset. Reflect on and provide examples of issues related to subjectivity, tone, context, polarity, irony, sarcasm, comparisons, and the use of neutral language in 2-3 paragraphs.
+
+### 2.1 Analyse Sentiment with Sentimentr
 
 ```{r}
+# generate the sentiment of the entire songs using sentimentr (accounts inter word sentiment)
+library(sentimentr)
+
+song_sentiment_sent <- lyrics_df %>%
+    get_sentences() %>%
+    sentiment_by(by = c('track_title', 'line_number'))%>%
+  as.data.frame()
+
+ggplot(song_sentiment_sent, aes(line_number, ave_sentiment, fill = track_title, color = track_title)) +
+  ggtitle("Lyrics sentiment analysis with sentimentr") +
+  geom_line(show.legend = F) +
+  facet_wrap(~track_title)
+```
+
+### 2.2 Song "Abracadabra"
+
+> Let's take a deeper look at the song "Abracadabra"
+
+```{r}
+# Let's take a deeper look at the song "Abracadabra"
+song_circle <- lyrics_df %>%
+  filter(track_title == "Abracadabra")
+
+ggplot(song_sentiment_sent[song_sentiment_sent$track_title == "Abracadabra",], aes(line_number, ave_sentiment, fill = track_title, color = track_title)) +
+  ggtitle("Song \"Abracadabra\" sentiment line plot") +
+  geom_line(show.legend = F)
+```
+
+
+```{r}
+# analysis lyrics emotions
+song_emotion <- lyrics_df %>%
+  filter(track_title == "Abracadabra")%>%
+  get_sentences() %>%
+  emotion_by(by = c('track_title', 'words'))%>%
+  as.data.frame()
+```
+
+### 2.3 Ambiguous Text in Sentiment Analysis in R
+
+> Sentiment analysis in R usually involves libraries like `syuzhet`, `tidytext`, and `text2vec` , but they have their limitations in handling the complexity of natural human language in that:
+>
+> **Subjectivity**
+>
+> - **Issue**: Sentiment analysis often struggles to accurately gauge the subjectivity in a text. Subjective statements are based on personal opinions, feelings, or beliefs, whereas objective statements are factual and verifiable.
+>
+> - **Example**: "I think this movie is amazing!" vs. "This movie was released in 2020." The first sentence is subjective and should be identified as such by sentiment analysis algorithms.
+>
+> **Tone**
+>
+> - **Issue**: Detecting the tone of a text is crucial as it can completely change the meaning. The tone can be serious, ironic, sarcastic, playful, etc.
+> - **Example**: "What a brilliant performance!" can be a genuine compliment or a sarcastic remark, depending on the tone.
+>
+> **Context**
+>
+> - **Issue**: Words and phrases can have different meanings in different contexts. Sentiment analysis algorithms may struggle to understand context.
+> - **Example**: "This is sick!" could be negative in a healthcare context but positive when referring to a skateboard trick.
+>
+> **Polarity**
+>
+> - **Issue**: Polarity refers to identifying whether a sentiment is positive, negative, or neutral. Words can have different polarities in different situations.
+> - **Example**: "This film is unpredictably shocking." The word "shocking" can be positive (exciting) or negative (disturbing), depending on the context.
+>
+> **Irony and Sarcasm**
+>
+> - **Issue**: Irony and sarcasm are particularly challenging as they often imply the opposite of the literal meanings of words.
+> - **Example**: "Great! Another rainy day." This might be classified as positive sentiment when, in fact, it's likely negative due to sarcasm.
+>
+> **Comparisons**
+>
+> - **Issue**: Comparisons can be difficult to interpret correctly because they often involve both positive and negative sentiments.
+> - **Example**: "This phone has a better camera than my previous one but a much shorter battery life." This sentence contains both positive and negative sentiments.
+>
+> **Neutral Language**
+>
+> - **Issue**: Determining the neutrality of a statement is tricky, especially when it contains elements that could be construed as slightly positive or negative.
+> - **Example**: "The movie was three hours long." This statement is neutral but could be misinterpreted depending on the algorithm's training data (e.g., if long movies are generally seen as negative).
+
+
+```{r}
+# show the sentiments of a single line
+kable(song_emotion[song_emotion$words == "Comin' with the bad bitch magic (yeah)",c("track_title", "words", "emotion_type", "ave_emotion")])
 
 ```
+
+> In the song "Abracadabra", there are a lot of explicit words that may make it easy for r to extract the sentiment of the sentences.
+>
+> For example, as to the line above, words like "bad" and "bitch" are clear signs in words that can easily be picked up by `sentimentr` and `tidytext`
+>
+> However, tidytext is not good at understanding metaphor, ironic and sarcastic lines or lines that consist of idioms, for example:
+
+```{r}
+# show the sentiments of a single line
+kable(song_emotion[song_emotion$words == "Game over, put chills in your bones I told ya",c("track_title", "words", "emotion_type", "ave_emotion")])
+```
+
+> This line clearly show some kind of intimidation, "anticipation_negative", but is not detected by sentimentr
+
+> Dealing with these issues often involves preprocessing the text data, fine-tuning sentiment analysis models, and sometimes incorporating more advanced natural language processing techniques like context-aware or deep learning models. Libraries like syuzhet, tidytext, and text2vec can be used for sentiment analysis, but they have their limitations in handling the above complexities. Understanding these challenges is crucial for interpreting the results of sentiment analysis accurately and for improving the algorithms used for this task.
+
+<hr>
+
+> That is the end of Lab 04
+
+## **References**
+
+> 1. https://s-ai-f.github.io/Natural-Language-Processing/sentiment-analysis.html
+> 2. https://www.tidytextmining.com/sentiment.html
+> 3. https://github.com/akashrchandran/spotify-lyrics-api
+> 4. https://cran.r-project.org/web/packages/syuzhet/vignettes/syuzhet-vignette.html
 
