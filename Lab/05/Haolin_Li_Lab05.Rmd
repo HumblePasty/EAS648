@@ -217,9 +217,24 @@ plot(predicted)
 
 
 
-> Analysing the Fitting Goodness
+> **Analysing the Fitting Goodness**
 >
-> TBD:
+> The goodness of the fitting result can be assessed by two aspects:
+>
+> 1. As shown by the ``summary(fit)`` result, all the explanatory variables are significant for the explaining the changed areas.
+> 2. The ROC line is steep at the beginning and AUC is close to 1. Thus the model is good in fitting the result.
+>
+> **What characteristics contribute to urban development in Salt Lake?**
+>
+> According to the coefficients, distance to road has the largest value, which implies that distance to roads (which means transportation convenience) is the most significant (positive) factor that may lead to development. Distance to parks and distance to water have much smaller coefficients. The coefficent is negative, which can be intepret as "higher lands may require more effort to develop".
+>
+> **What variable might you add to better explain urban development**
+>
+> - **Normalized Difference Vegetation Index (NDVI)**: This index, derived from satellite imagery, measures vegetation health and coverage. It can be used to monitor green spaces within urban areas.
+> - **Air Quality Indices**: Using satellite data, it’s possible to estimate the concentration of different pollutants, providing insights into environmental aspects of urban areas.
+> - **Nighttime Lights**: Satellite imagery of nighttime lights is often used as a proxy for urbanization and economic activity.
+> - **Land Surface Temperature**: Using thermal imagery, land surface temperature can be a good indicator of urban heat islands and overall urbanization levels.
+> - ...
 
 
 
@@ -268,7 +283,40 @@ db_scaled <- scale(amenDataDF)
 
 ### K-means clustering
 
+> Determine the number of clusters
 
+```{r}
+# Determine number of clusters
+wss <- (nrow(db_scaled)-1)*sum(apply(db_scaled,2,var))
+for (i in 2:15) wss[i] <- sum(kmeans(db_scaled,
+   centers=i)$withinss)
+plot(1:15, wss, type="b", xlab="Number of Clusters",
+  ylab="Within groups sum of squares")
+```
+> Cluster
 
+```{r}
+# K-Means Cluster Analysis
+fit_new <- kmeans(db_scaled, 5) # 5 cluster solution
 
+# get cluster means
+aggregate(db_scaled,by=list(fit_new$cluster),FUN=mean)
+```
 
+> Plot the Data
+
+```{r}
+# append cluster assignment
+amenData <- data.frame(amenData, fit_new$cluster)
+
+st_geometry(amenData) <- geomData
+
+ggplot() + 
+  geom_sf(data = amenData, mapping = aes(fill = as.factor(fit_new.cluster)), color = NA) + 
+  theme(legend.position = "none") +
+  ggtitle("Clusters based on Kmeans")
+```
+
+> TBD: rechoose the variables, add compass, north arrow, scale bar
+
+> Descriptive questions

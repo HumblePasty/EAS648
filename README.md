@@ -4,7 +4,7 @@
 >
 > Email: haolinli@umich.edu
 >
-> Last Updated: Nov/3/2023
+> Last Updated: Nov/27/2023
 
 Repository for codes in EAS 648: Advanced Geovisualization, University of Michigan
 
@@ -31,4 +31,6 @@ Repository for codes in EAS 648: Advanced Geovisualization, University of Michig
 - Lab 04: Sentiment analysis
   - [Webpage](https://humblepasty.github.io/EAS648/Lab/04/)
   - [Repository](https://github.com/HumblePasty/EAS648/tree/master/Lab/04)
-- Lab 05: TBD
+- Lab 05: Applied spatial analysis
+  - [Webpage](https://humblepasty.github.io/EAS648/Lab/05/)
+  - [Repository](https://github.com/HumblePasty/EAS648/tree/master/Lab/05)
