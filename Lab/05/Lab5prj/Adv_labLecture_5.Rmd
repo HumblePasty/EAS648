@@ -21,7 +21,7 @@ Spatial autocorrelation statistics measure and analyze the degree of dependency 
 ### Exercise in spatial analysis
 
 
-To learn and apply spatial analysis, in spatial analysis, we will commence with an example in R utilizing data from Salt Lake City, Utah. This city has experienced significant urban development in recent decades, marked by substantial population growth, immigration, and increased housing demand. This surge has led to a notable 17.6 percent increase in urban impervious development from 2002 to 2010. 
+To learn and apply spatial analysis, in spatial analysis, we will commence with an example in R utilizing data from Salt Lake City, Utah. This city has experienced significant urban development in recent decades, marked by substantial population growth, immigration, and increased housing demand. This surge has led to a notable 17.6 percent increase in urban impervious development from 2002 to 2010.
 
 Here we will read-in Land Change data and other raster layers that might explain urban development
 
@@ -30,7 +30,7 @@ individual files [here](https://drive.google.com/open?id=18vLm2nKJ__Dmndw5QHa77p
 ```{r}  
 library(terra)
 
-#first import the land cover/use data 
+#first import the land cover/use data
 NLCD_2001 <- rast("NLCD_2001_SL.tif")
 NLCD_2004 <- rast("NLCD_2004_SL.tif")
 NLCD_2006 <- rast("NLCD_2006_SL.tif")
@@ -153,7 +153,7 @@ We can map the
 ```{r}
 ggplot(allrastersSL, aes(y=y, x=x, color=urbanChg)) +
    geom_point(size=2, shape=15) +
-   theme() 
+   theme()
 
 ```
 
@@ -189,7 +189,7 @@ SL <- allrastersSL %>%
   # the non urban areas in 2001
   filter(NLCD_2001_SL != 21 & NLCD_2001_SL != 22 & NLCD_2001_SL != 23 & NLCD_2001_SL != 24) 
 SL <- SL[10:14]
-# similar to tidy(), melt is a function to organize the data 
+# similar to tidy(), melt is a function to organize the data
 SLmelt<-melt(SL)
 p <- ggplot(SLmelt, aes(x=urbanChg, y=value,fill=variable))+
     geom_boxplot()+
@@ -223,22 +223,22 @@ SLsampleUrban <- nonUrban[index, ]
 SLsample <- rbind(SLsampleUrban, newUrban)
 
 ###Consider a train and testing sample by futher subsampling the data
-index <- sample(1:nrow(SL), (round(nrow(SL)* 0.01)))
-SLsample <- SL[index, ]
+# index <- sample(1:nrow(SLsample), (round(nrow(SLsample)* 0.7)))
+# SLsample <- SLsample[index, ]
 
 ###Consider making a training and testing dataset
 ###This can reduce the computational burden 
 ### It also is a robust goodness of fit method
-#SLsample <- SLsample %>% dplyr::mutate(id = row_number())
+SLsample <- SLsample %>% dplyr::mutate(id = row_number())
 #Create training set
-#train <- SLsample %>% sample_frac(.70)
+train <- SLsample %>% sample_frac(.70)
 #Create test set
-#test  <- anti_join(SLsample, train, by = 'id')
+test  <- anti_join(SLsample, train, by = 'id')
 ```
 
 Now that we have a sample, we can fit a model. Fitting a model in always uses the same format. You specify the type of model (e.g. lm, glm), then in brackets define the dependent variable followed by the ```~``` (tilde). After the tilde you name each of the independent variables with ```+``` between them. When these are defined, you use a comma and indicate the data and other specification like the model family you want to use (e.g. binomial, poisson, negative binomial)  
 ```{r}
-fit <- glm(urbanChg ~ Parks_dist_SL + Rd_dns1km_SL + WaterDist_SL + DEM_SL,data=SLsample,family=binomial())
+fit <- glm(urbanChg ~ Parks_dist_SL + Rd_dns1km_SL + WaterDist_SL + DEM_SL,data=train,family=binomial())
 summary(fit)
 
 ```

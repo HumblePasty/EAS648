@@ -1,0 +1,274 @@
+---
+title: "EAS648 Lab05"
+author: "Haolin Li (haolinli@umich.edu)"
+date: "2023-11-16"
+output: 
+  html_document:
+    output_file: "index.html"
+    toc: true
+    toc_float: true
+---
+
+```{r setup, include=FALSE, warning=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE)
+Sys.setenv(LANG = "en")
+setwd("D:/UMich/Fall23/EAS648/Repo/Lab/05")
+```
+
+# EAS 648 Lab 05: Applied spatial analysis
+
+> **Links: **
+>
+> **Course Repository**: https://github.com/HumblePasty/EAS648
+>
+> **Lab05 Webpage**: https://humblepasty.github.io/EAS648/Lab/05/
+>
+> **Lab05 Repository**: https://github.com/HumblePasty/EAS648/tree/master/Lab/05
+
+
+> Assignment
+>
+> 1. Analyze the Salt Lake City dataset. Fit a model that explains suitability for urban development (provide evidence of goodness of model fit). What characteristics contribute to urban development in Salt Lake? What variable might you add to better explain urban development. (1-2 paragraphs)
+> 2. Analyze the database of amenity landscape characteristics using a clustering technique. Choose variables based on a thematic inquiry of your choice. Visualize ad provide qualitative descriptions of the groups that you derive from the clustering techniques. Provide evidence of you characterizations. Provide a map of your cluster analysis. Give an explanation of the spatial distribution of these groups. (1-2 paragraphs)
+
+
+
+> Haolin's Note:
+>
+> For this assignment, I'll complete the tasks in 2 parts:
+>
+> - Part I: Analyze the Salt Lake City dataset and Model Fitting
+> - Part II: Cluster Analysis of Landscape Characteristics
+
+## Part I: Analyze the Salt Lake City dataset and Model Fitting
+
+### Preparing the Dataset
+
+```{r}
+library(terra)
+
+#first import the land cover/use data
+NLCD_2001 <- rast("Lab5prj/NLCD_2001_SL.tif")
+NLCD_2004 <- rast("Lab5prj/NLCD_2004_SL.tif")
+NLCD_2006 <- rast("Lab5prj/NLCD_2006_SL.tif")
+NLCD_2008 <- rast("Lab5prj/NLCD_2008_SL.tif")
+NLCD_2011 <- rast("Lab5prj/NLCD_2011_SL.tif")
+NLCD_2013 <- rast("Lab5prj/NLCD_2013_SL.tif")
+NLCD_2016 <- rast("Lab5prj/NLCD_2016_SL.tif")
+# Distance to parks and protected areas in km (Euclidean) for the study area
+Park_dist <- rast("Lab5prj/Parks_dist_SL.tif")
+# Road density for a 1 km neighborhood
+Rd_dns1km <- rast("Lab5prj/Rd_dns1km_SL.tif")
+# Distance to water bodies in km (Euclidean)
+WaterDist <- rast("Lab5prj/WaterDist_SL.tif")
+# Elevation
+DEM <- rast("Lab5prj/DEM_SL.tif")
+
+allrasters <- c(NLCD_2001, NLCD_2004, NLCD_2006, NLCD_2008, NLCD_2011, NLCD_2013, NLCD_2016, Park_dist, Rd_dns1km, WaterDist,DEM)
+
+library(tidyverse)
+allrastersSL <- as.data.frame(allrasters, xy=TRUE)
+## Here we are filtering out the no data values (stored as 128)
+allrastersSL <- allrastersSL %>%
+  filter (NLCD_2001_SL != 128)
+head(allrastersSL)
+```
+
+> Pre-plotting the Data
+
+```{r}
+plot(NLCD_2001)
+```
+
+
+### Sampling the Data
+
+```{r}
+library(leaflet)
+sampleSLrnd <- spatSample(allrasters, size=100, "random", cells=TRUE, xy=TRUE)
+head(sampleSLrnd)
+plot(sampleSLrnd$x, sampleSLrnd$y, main = "Sample Locations for Autocorrelation Analysis")
+```
+
+### Spatial Autocorrelation Analysis (Moran's I)
+
+```{r}
+# flatten the spatial data to a dataframe that has lat and long
+flat_data <- as.data.frame(sampleSLrnd)
+flat_data = na.omit(flat_data)
+# calculate distances between all the points,    
+dist_matrix <- as.matrix(dist(cbind(flat_data$x, flat_data$y)))
+# and generate a matrix of inverse distance weights.
+dist_matix.inv <- 1/dist_matrix
+diag(dist_matix.inv) <- 0
+
+library(ape)
+# Moran.I(sampleSLrnd$Rd_dns1km_SL, dist_matix.inv)
+Moran.I(flat_data$Rd_dns1km_SL, dist_matix.inv)
+```
+
+### Plotting and Statistical Analysis of the Changed Area
+
+```{r}
+allrastersSL <- allrastersSL %>%
+    mutate(urbanChg = (NLCD_2001_SL != 21 & NLCD_2001_SL != 22 & NLCD_2001_SL != 23 & NLCD_2001_SL != 24) &  (NLCD_2016_SL == 21 | NLCD_2016_SL == 22  | NLCD_2016_SL == 23 | NLCD_2016_SL == 24))
+
+ggplot(allrastersSL, aes(y=y, x=x, color=urbanChg)) +
+   geom_point(size=2, shape=15) +
+   ggtitle("Changed Urban Areas Distribution between 2001 and 2016") +
+   theme()
+```
+
+```{r}
+## calculate total new urban impervious for 2016
+newUrban <- (sum(as.numeric(allrastersSL$NLCD_2016_SL == 21 | allrastersSL$NLCD_2016_SL == 22 |allrastersSL$NLCD_2016_SL == 23 | allrastersSL$NLCD_2016_SL == 24))) - (sum(as.numeric(allrastersSL$NLCD_2001_SL == 21| allrastersSL$NLCD_2001_SL == 22| allrastersSL$NLCD_2001_SL == 23| allrastersSL$NLCD_2001_SL == 24)))
+## calculate total urban impervious for 2001
+urban2001 <- (sum(as.numeric(allrastersSL$NLCD_2001_SL == 21| allrastersSL$NLCD_2001_SL == 22| allrastersSL$NLCD_2001_SL == 23| allrastersSL$NLCD_2001_SL == 24)))
+## percentage increase in urban impervious
+newUrban/urban2001* 100
+```
+
+```{r}
+library(plyr)
+library(reshape2)
+library(plotly)
+
+SL <- allrastersSL %>%
+  # the non urban areas in 2001
+  filter(NLCD_2001_SL != 21 & NLCD_2001_SL != 22 & NLCD_2001_SL != 23 & NLCD_2001_SL != 24) 
+SL <- SL[10:14]
+# similar to tidy(), melt is a function to organize the data
+SLmelt<-melt(SL)
+p <- ggplot(SLmelt, aes(x=urbanChg, y=value,fill=variable))+
+    geom_boxplot()+
+    facet_grid(.~variable)+
+    labs(x="X (binned)")+
+    theme(axis.text.x=element_text(angle=-90, vjust=0.4,hjust=1))
+p
+```
+
+
+### Fitting the Model
+
+
+```{r}
+###Grab all the developed cells (presence)
+newUrban <- SL %>%
+  filter(urbanChg == TRUE)
+
+###Grab all the nondeveloped and not previously urban cells (absence)
+nonUrban <- SL %>%
+  filter(urbanChg == FALSE)
+
+###Get a random sample of the absence data  
+### that is twice as large as the presence data
+index <- sample(1:nrow(nonUrban), (round(nrow(newUrban)* 2)))
+SLsampleUrban <- nonUrban[index, ]
+
+### combine the original presence and absence data
+SLsample <- rbind(SLsampleUrban, newUrban)
+
+###Consider making a training and testing dataset
+###This can reduce the computational burden 
+### It also is a robust goodness of fit method
+SLsample <- SLsample %>% dplyr::mutate(id = row_number())
+#Create training set
+train <- SLsample %>% sample_frac(.70)
+#Create test set
+test  <- anti_join(SLsample, train, by = 'id')
+```
+
+> Fit a Model
+
+```{r}
+fit <- glm(urbanChg ~ Parks_dist_SL + Rd_dns1km_SL + WaterDist_SL + DEM_SL,data=train,family=binomial())
+summary(fit)
+```
+
+### Test the Model
+
+> Test the data
+
+```{r}
+## Loading required package: ggplots
+library(ROCR)
+# plot a ROC curve for a single prediction run
+# and color the curve according to cutoff.
+pred <- prediction(predict(fit, newdata = test), test$urbanChg)
+perf <- performance(pred,"tpr","fpr")
+plot(perf,colorize=TRUE)
+```
+
+```{r}
+## A simpler way to understand these result is to calculate the
+## area under the curve(AUC). The closer this number is to 1, the
+## better your model fit
+auc_ROCR <- performance(pred, measure = "auc")
+auc_ROCR <- auc_ROCR@y.values[[1]]
+auc_ROCR
+```
+
+### Predict the Result Using the Model
+
+```{r}
+predicted = predict(allrasters, fit)
+plot(predicted)
+```
+
+
+
+> Analysing the Fitting Goodness
+>
+> TBD:
+
+
+
+## Part II: Cluster Analysis of Landscape Characteristics
+
+### Loading the Data
+
+```{r}
+library(fastcluster)
+library(graphics)
+library(ggplot2)
+library(ggdendro)
+
+library(sf)
+amenData<- st_read("Lab5prj/AmenDataAll.shp")
+# head(amenData)
+```
+
+```{r}
+geomData = st_sfc(amenData$geometry)
+```
+
+### Pre-Process
+
+```{r}
+amenData$ZooEmpDist_log <- log(amenData$ZooDistEmp + 0.00000001)
+amenData$HotelEmpDist_log <- log(amenData$HotelDistE + 0.00000001)
+amenData$HistMonDist_log <- log(amenData$HistMon_Di + 0.00000001)
+amenData$HighEdEmpDist_log <- log(amenData$HigherEdDi + 0.00000001)
+amenData$GolfEmpDist_log <- log(amenData$GolfDistEm + 0.00000001)
+
+amenData$SocialNorm <- amenData$Nat_Flickr/(amenData$serPop10 + 1)
+amenData$HousingChg <- amenData$Urb2011 - amenData$Urb2001
+
+amenDataDF<-amenData[,c("SocialNorm", "HousingChg", "Frst2011", "WaterPct", "distcoast", "DEM_max","DEM_range", "HikeLength","ZooEmpDist_log", "HotelEmpDist_log","HistMonDist_log", "HighEdEmpDist_log", "GolfEmpDist_log")]
+###if you want to add variable look at the names using: names(amenData)
+
+## make sure there are no missing data
+amenDataDF <- na.omit(amenDataDF)
+## we need to make it into a normal dataframe to 
+## do the analysis
+amenDataDF <- as.data.frame(amenDataDF)[1:12]
+## calculate z-scores for the dataset
+db_scaled <- scale(amenDataDF)
+```
+
+### K-means clustering
+
+
+
+
+
