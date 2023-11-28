@@ -85,9 +85,11 @@ plot(NLCD_2001)
 
 ```{r}
 library(leaflet)
+library(ggplot2)
 sampleSLrnd <- spatSample(allrasters, size=100, "random", cells=TRUE, xy=TRUE)
 head(sampleSLrnd)
-plot(sampleSLrnd$x, sampleSLrnd$y, main = "Sample Locations for Autocorrelation Analysis")
+plot(NLCD_2001, main = "Sample Locations for Autocorrelation Analysis")
+points(sampleSLrnd$x, sampleSLrnd$y)
 ```
 
 ### Spatial Autocorrelation Analysis (Moran's I)
@@ -240,6 +242,11 @@ plot(predicted)
 
 ## Part II: Cluster Analysis of Landscape Characteristics
 
+> Task:
+>
+> Analyze the database of amenity landscape characteristics using a clustering technique. Choose variables based on a thematic inquiry of your choice. Visualize ad provide qualitative descriptions of the groups that you derive from the clustering techniques. Provide evidence of you characterizations. Provide a map of your cluster analysis. Give an explanation of the spatial distribution of these groups. (1-2 paragraphs)
+
+
 ### Loading the Data
 
 ```{r}
@@ -259,24 +266,33 @@ geomData = st_sfc(amenData$geometry)
 
 ### Pre-Process
 
+> Here I continue to use the set of variables from the tutorial to show amenity:
+> - Distance to zoo ``ZooDistEmp``
+> - Distance to hotel ``HotelDistE``
+> - Distance to an unknown feature ``HistMon_Di`` 
+> - Distance to higher education ``HigherEdDi``
+> - Distance to golf site ``GolfDistEm``
+> - Distance to coast ``distcoast``
+
 ```{r}
+# log transform the distance to show importance of nearness
 amenData$ZooEmpDist_log <- log(amenData$ZooDistEmp + 0.00000001)
 amenData$HotelEmpDist_log <- log(amenData$HotelDistE + 0.00000001)
 amenData$HistMonDist_log <- log(amenData$HistMon_Di + 0.00000001)
 amenData$HighEdEmpDist_log <- log(amenData$HigherEdDi + 0.00000001)
 amenData$GolfEmpDist_log <- log(amenData$GolfDistEm + 0.00000001)
+amenData$distcoast_log <- log(amenData$distcoast + 0.00000001)
 
-amenData$SocialNorm <- amenData$Nat_Flickr/(amenData$serPop10 + 1)
-amenData$HousingChg <- amenData$Urb2011 - amenData$Urb2001
+# amenData$SocialNorm <- amenData$Nat_Flickr/(amenData$serPop10 + 1)
+# amenData$HousingChg <- amenData$Urb2011 - amenData$Urb2001
 
-amenDataDF<-amenData[,c("SocialNorm", "HousingChg", "Frst2011", "WaterPct", "distcoast", "DEM_max","DEM_range", "HikeLength","ZooEmpDist_log", "HotelEmpDist_log","HistMonDist_log", "HighEdEmpDist_log", "GolfEmpDist_log")]
-###if you want to add variable look at the names using: names(amenData)
+amenDataDF<-amenData[,c("distcoast_log", "ZooEmpDist_log", "HotelEmpDist_log","HistMonDist_log", "HighEdEmpDist_log", "GolfEmpDist_log")]
 
 ## make sure there are no missing data
 amenDataDF <- na.omit(amenDataDF)
 ## we need to make it into a normal dataframe to 
 ## do the analysis
-amenDataDF <- as.data.frame(amenDataDF)[1:12]
+amenDataDF <- as.data.frame(amenDataDF)[1:6]
 ## calculate z-scores for the dataset
 db_scaled <- scale(amenDataDF)
 ```
@@ -293,30 +309,81 @@ for (i in 2:15) wss[i] <- sum(kmeans(db_scaled,
 plot(1:15, wss, type="b", xlab="Number of Clusters",
   ylab="Within groups sum of squares")
 ```
-> Cluster
+> Based on the graph, 3 cluster would be enough to classify the points
 
 ```{r}
 # K-Means Cluster Analysis
-fit_new <- kmeans(db_scaled, 5) # 5 cluster solution
-
+fit_new <- kmeans(db_scaled, 3) # 3 cluster solution
 # get cluster means
-aggregate(db_scaled,by=list(fit_new$cluster),FUN=mean)
+cluster_means = aggregate(db_scaled,by=list(fit_new$cluster),FUN=mean)
+cluster_means$Group.1 = as.factor(cluster_means$Group.1)
+cluster_means
 ```
 
 > Plot the Data
 
 ```{r}
+library(ggspatial)
+library(grid)
+
+library(cowplot)
 # append cluster assignment
 amenData <- data.frame(amenData, fit_new$cluster)
 
 st_geometry(amenData) <- geomData
 
+# Create grobs annotation
+label_text <- "Author: Haolin Li\nGCS: NAD 1983\nPCS: NAD83 / Conus Albers\nDate: 11/26/2023"
+text_grob <- textGrob(label = label_text, 
+                     hjust = 1, vjust = 0, 
+                     gp = gpar(fontsize = 4))
+
+text_grob <- editGrob(text_grob,x = unit(0.99, "npc"), y = unit(0.08, "npc"))
+
 ggplot() + 
   geom_sf(data = amenData, mapping = aes(fill = as.factor(fit_new.cluster)), color = NA) + 
-  theme(legend.position = "none") +
-  ggtitle("Clusters based on Kmeans")
+  ggtitle("Clusters based on Kmeans - Number of Clusters: 3") +
+  labs(fill = "Clusters:") +
+  # adding north arrow
+  annotation_north_arrow(location = "tr", which_north = "true", 
+                         style = north_arrow_fancy_orienteering()) +
+  # adding scale bar
+  annotation_scale(location = "br", width_hint = 0.5) +
+  # add annotion
+  annotation_custom(grob = text_grob) +
+  theme_bw()
 ```
 
-> TBD: rechoose the variables, add compass, north arrow, scale bar
+### Discussion
 
-> Descriptive questions
+> Plot the line graph to indicate the meaning of the 3 clusters:
+
+```{r}
+df_long <- gather(cluster_means, key = "Variable", value = "Value", -Group.1)
+
+ggplot(df_long, aes(x = Variable, y = Value, group = Group.1, color = Group.1)) +
+  geom_line() + 
+  geom_point() + 
+  theme_minimal() + 
+  labs(title = "Line Plot of Means for 3 Clusters", x = "Variables", y = "Mean") 
+```
+
+> As shown by the line graph:
+> 
+> - Cluster 1 have high **negative** mean value for every variable except for ``HighEdDist_log`` which indicates that this cluster may imply the areas that are close to higher education institudes
+> - Cluster 2 and 3 does not show significant preferences for a certain variable and is hard to tell the meaning
+
+> These characteristics are also shown on the map
+>
+> Cluster 1 mainly concentrates in the urban areas, for example in Michigan, it mainly concentrates in the Greater Detroit Area (Detroit, Ann Arbor and Ypsilanti, etc). Cluster 1 also concentrates around the Tri-state area and around LA, where higher education institudes are common, further supports the assumption.
+
+
+<hr>
+
+> The End of Lab 05
+
+## **References**
+
+> 1. https://chat.openai.com/
+> 2. https://en.wikipedia.org/wiki/Moran%27s_I
+> 3. https://humblepasty.github.io/EAS648/Lab/01/#Part_II:_Assignment_Tasks
