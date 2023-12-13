@@ -44,9 +44,7 @@ ui <- dashboardPage(
   
   dashboardSidebar(
     sidebarMenu(
-      # main map
-      menuItem(" CoC in Michigan", tabName = "map", icon = icon("map")),
-      # homelessness tab
+      # homelessness map
       menuItem(" Homelessness in Michigan", tabName = "homeless", icon = icon("house-chimney-crack"))
     )
   ),
@@ -55,69 +53,92 @@ ui <- dashboardPage(
   dashboardBody(
     tags$style(type = "text/css", ".content {padding:0}"),
     tags$style(type = "text/css", ".box-body {padding:0}"),
-    tags$style(type = "text/css", ".col-sm-9 {padding:0}"),
-    tags$style(type = "text/css", "html, body, .container-fluid { height:100vh !important}"),
+    # tags$style(type = "text/css", ".col-sm-9 {padding:0}"),
+    # tags$style(type = "text/css", "html, body, .container-fluid { height:100vh !important}"),
+    
+    # tags$head(
+    #   tags$style(HTML('
+    #     #controls {
+    #       position: absolute;
+    #       top: 50px;
+    #       right: 20px;
+    #       width: 300px;
+    #       z-index: 400;
+    #     }
+    #     #homeless_table {
+    #       position: absolute;
+    #       height: 30vh;
+    #       bottom: 20px;
+    #       left: 20px;
+    #       width: calc(100% - 40px);
+    #       z-index: 400;
+    #     }
+    #     .leaflet-control {
+    #       z-index: 401;
+    #     }
+    #   '))
+    # ),
+    # add custom css style for the data filter panel
+    tags$head(
+      tags$link(rel = "stylesheet", type = "text/css", href = "styles.css"),
+      includeScript("gomap.js")
+    ),
+    
     # 使用 tabItems 来创建不同的页面内容
     tabItems(
-      tabItem(tabName = "map",
-              fluidRow(
-                box(
-                  width = 12,
-
-                  # main map
-                  column(
-                    width = 9,
-                    leafletOutput("map", height = "93vh")
-                  ),
-
-                  # options panel
-                  column(
-                    h3(span(icon("circle-info")), "   ", "Descriptions"),
-                    h4("Data Source") %>% shinyhelper::helper(type = "markdown", colour = "#0d0d0d",
-                                                      content = "desc_data_source"),
-                    p("Click the CoC zones on the map to explore these data!"),
-                    
-                    hr(),
-                    
-                    h3("Glossaries"),
-                    h5("CoC") %>% shinyhelper::helper(type = "markdown", colour = "#0d0d0d",
-                                                     content = "desc_coc"),
-                    h5("ARD") %>% shinyhelper::helper(type = "markdown", colour = "#0d0d0d",
-                                                      content = "desc_ard"),
-                    h5("PPRN") %>% shinyhelper::helper(type = "markdown", colour = "#0d0d0d",
-                                                      content = "desc_pprn"),
-                    h5("FPRN") %>% shinyhelper::helper(type = "markdown", colour = "#0d0d0d",
-                                                      content = "desc_fprn"),
-                    
-                    hr(),
-                    
-                    tags$style(type = "text/css", ".col-sm-3 {height: 93vh}"),
-                    width = 3,
-                    id = "controls", class = "panel panel-default",
-                    # tags$style(type = "text/css", "h3 {text-align: center}"),
-                    h3(span(icon("gear")), "   ", "Options"),
-                    checkboxInput("show_coc", "Show CoC Areas", TRUE),
-                    checkboxInput("show_county", "Show County Boundaries", TRUE),
-                    
-                    # descriptions
-                    hr()
-                    
-                  )
-                )
-              )
-            ),
-      # 这里可以添加更多的页面内容
       tabItem(tabName = "homeless",
         fluidRow(
           box(
             width = 12,
             title = span(icon("house-chimney-crack"), "Homelessness in Michigan"),
-            leafletOutput(outputId = "homeless_map", height = "60vh"),
+            column(
+              width = 9,
+              tags$style(type = "text/css", "#homeless_table {height:30vh !important}"),
+              leafletOutput(outputId = "homeless_map", height = "50vh"),
+              
+              h4(span(icon("table"), "Homelessness Table")),
+              
+              DTOutput(outputId = "homeless_table")
+            ),
             
-            tags$br(),
-            h4("Homelessness Table"),
-            
-            DTOutput(outputId = "homeless_table")
+            column(
+              width = 3,
+              h3(span(icon("circle-info")), "   ", "Descriptions"),
+              h4("Data Source") %>% shinyhelper::helper(type = "markdown", colour = "#0d0d0d",
+                                                        content = "desc_data_source"),
+              p("Click the CoC zones on the map to explore these data!"),
+              
+              hr(),
+              
+              h3(span(icon("book")), "   ", "Glossaries"),
+              h5("CoC") %>% shinyhelper::helper(type = "markdown", colour = "#0d0d0d",
+                                                content = "desc_coc"),
+              h5("ARD") %>% shinyhelper::helper(type = "markdown", colour = "#0d0d0d",
+                                                content = "desc_ard"),
+              h5("PPRN") %>% shinyhelper::helper(type = "markdown", colour = "#0d0d0d",
+                                                 content = "desc_pprn"),
+              h5("FPRN") %>% shinyhelper::helper(type = "markdown", colour = "#0d0d0d",
+                                                 content = "desc_fprn"),
+              
+              hr(),
+              
+              # Options
+              tags$style(type = "text/css", ".col-sm-3 {height: 93vh}"),
+              id = "controls", class = "panel panel-default",
+              
+              h3(span(icon("gear")), "   ", "Options"),
+              
+              checkboxInput("show_coc", "Show CoC Areas", TRUE),
+              checkboxInput("show_county", "Show County Boundaries", TRUE),
+              selectInput("yearInput", "Year of Data", choices = 2007:2022, selected = 2021),
+              
+              fluidRow(
+                column(6, actionButton("clear_markers", "Clear Map", icon = icon("eraser"))),
+                column(6, actionButton("reset_view", "Reset View", icon = icon("globe")))
+              ),
+              
+              hr()
+            )
             
           )
         )

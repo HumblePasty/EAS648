@@ -1,4 +1,4 @@
-# coc_data <- st_read("Data/CoC_Michigan_2021.shp")
+coc_data <- st_read("Data/CoC_Michigan_2021.shp")
 # 
 # # 读取密歇根州县界数据
 # michigan_county_data <- st_read("Data/Michigan_County_Boundaries.shp")
@@ -36,3 +36,25 @@ for (year in 2007:2022) {
 
 # bind all years
 michigan_homeless_df <- bind_rows(all_data_list)
+# michigan_homeless_df = michigan_homeless_df[michigan_homeless_df$Year == 2021,]
+
+michigan_homeless_df_new = coc_data %>%
+  st_centroid() %>%
+  st_transform(crs = st_crs(4326)) %>%
+  mutate(lng = sf::st_coordinates(.)[,1], lat = sf::st_coordinates(.)[,2]) %>%
+  
+  mutate(zoom_in_map_link = 
+           paste(
+             '<a class="go-map" href=""',
+             'data-lat="', lat, '" data-lng="', lng,
+             '"><i class="fas fa-search-plus"></i></a>',
+             sep=""
+           )
+         ) %>%
+  st_drop_geometry() %>%
+  dplyr::select(c(`COCNUM`,`zoom_in_map_link`))
+  # dplyr::relocate(`CoC Number`,zoom_in_map_link)
+
+colnames(michigan_homeless_df_new)[1] = "CoC Number"
+
+michigan_homeless_df <- left_join(michigan_homeless_df, michigan_homeless_df_new, by = "CoC Number")

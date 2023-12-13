@@ -5,6 +5,6 @@ account: humblepasty
 server: shinyapps.io
 hostUrl: https://api.shinyapps.io/v1
 appId: 10763650
-bundleId: 8042820
+bundleId: 8044164
 url: https://humblepasty.shinyapps.io/mygeovizapp/
 version: 1
