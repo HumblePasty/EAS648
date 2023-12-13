@@ -1,0 +1,10 @@
+name: mytestapp
+title:
+username: humblepasty
+account: humblepasty
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 10692603
+bundleId: 7995945
+url: https://humblepasty.shinyapps.io/mytestapp/
+version: 1

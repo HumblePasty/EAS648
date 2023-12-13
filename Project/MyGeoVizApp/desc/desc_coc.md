@@ -1,0 +1,3 @@
+### CoC (Continuum of Care)
+
+CoC stands for "Continuum of Care," a concept and program designed to address the issues of homelessness through a coordinated community effort. This approach involves a range of services including emergency shelter, transitional housing, permanent housing, and homelessness prevention initiatives. In the United States, the HUD (Department of Housing and Urban Development) supports CoC programs to promote collaboration among community agencies to assist homeless individuals in rapidly returning to stable housing.

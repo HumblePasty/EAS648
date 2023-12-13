@@ -1,0 +1,3 @@
+### FPRN (Final Pro-Rata Need)
+
+FPRN stands for Final Pro-Rata Need. It represents the final funding needs of each CoC in the HUD’s CoC program allocation process, taking into account various adjustments (like regional homelessness statistics and resource availability). It is a more precise figure than the preliminary assessment, used to determine the final amount of funding each CoC is eligible to apply for.

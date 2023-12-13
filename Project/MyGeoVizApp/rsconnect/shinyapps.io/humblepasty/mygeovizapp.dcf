@@ -1,0 +1,10 @@
+name: mygeovizapp
+title:
+username: humblepasty
+account: humblepasty
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 10763650
+bundleId: 8042820
+url: https://humblepasty.shinyapps.io/mygeovizapp/
+version: 1

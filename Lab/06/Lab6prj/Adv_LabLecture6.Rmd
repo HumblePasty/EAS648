@@ -1,0 +1,981 @@
+---
+title: "Shiny - Web map"
+author: "Derek Van Berkel"
+date: "March 4, 2020"
+output: html_document
+---
+
+## Shiny
+Shiny is a package from RStudio that makes it easy to build interactive web applications in R. 
+
+### Features of Shiny
+ * Enables the creation of web applications with minimal coding effort; notably, you don't need to be versed in JavaScript.
+* The Shiny applications you generate are inherently "live," ensuring that changes take effect instantly as users modify inputs, eliminating the need for a browser reload.
+* Shiny user interfaces can be constructed entirely within R or directly coded in HTML, CSS, and JavaScript for enhanced flexibility.
+* Compatible with any R environment (Console R, Rgui for Windows or Mac, ESS, StatET, RStudio, etc.).
+* Features a highly customizable slider widget with integrated support for animation, along with pre-built output widgets for presenting plots, tables, and the printed output of R objects.
+* Facilitates swift bidirectional communication between the web browser and R through the websockets package.
+
+#### Installation
+Shiny is available on CRAN, so you can install it in the usual way from your R console:
+```{r, eval=F, echo=T}
+# install.packages("shiny")
+```
+
+For an introduction and live examples, visit the Shiny [homepage](https://shiny.rstudio.com/tutorial/). You can also use these tutorial [videos](https://shiny.rstudio.com/tutorial/) as additional resources
+
+#### Data
+The data for today's lab can be obtained on the canavas website. We are also using the California dataset from last lab, and the Michigan Flickr data that we used in lab 3. 
+
+
+### Hello Shiny
+Numerous online Shiny examples are available, and one such instance is the "01_hello" Shiny app. This simple application generates a random distribution with a configurable number of observations and subsequently plots it. To execute the example, enter the following command:
+
+```{r, eval=F, echo=T}
+library(shiny)
+runExample("01_hello")
+```
+
+### The Basics
+All Shiny apps consist of three essential components:
+
+1. **User-interface definition (ui):**
+   - The ui object dictates the layout and appearance of your app.
+
+2. **Server script:**
+   - The server function contains the instructions necessary for your computer to construct the app.
+
+3. **Call to the shinyApp function:**
+   - The shinyApp function combines the explicit UI/server pair, creating Shiny app objects.
+
+Here is the source code for the Hello Shiny application, encompassing the definition of the user interface, the server function, and the application call.
+
+### User interface
+The UI controls the layout and options of your app  
+```{r, eval=F, echo=T}
+library(shiny)
+
+# Define UI for app that draws a histogram ----
+ui <- fluidPage(
+
+  # App title ----
+  titlePanel("Hello Shiny!"),
+
+  # Sidebar layout with input and output definitions ----
+  sidebarLayout(
+
+    # Sidebar panel for inputs ----
+    sidebarPanel(
+
+      # Input: Slider for the number of bins ----
+      sliderInput(inputId = "bins",
+                  label = "Number of bins:",
+                  min = 1,
+                  max = 50,
+                  value = 30)
+
+    ),
+
+    # Main panel for displaying outputs ----
+    mainPanel(
+
+      # Output: Histogram ----
+      plotOutput(outputId = "distPlot")
+
+    )
+  )
+)
+
+```
+
+### The server 
+The server is responsible for executing the functionality of your app. Here is a straightforward example using a random distribution function. It incorporates a variable for the requested number of observations (provided in the ui). These observations are generated and subsequently plotted as a histogram on the user interface (ui).
+
+```{r}
+library(shiny)
+
+# Define server logic required to draw a histogram ----
+server <- function(input, output) {
+
+  # Histogram of the Old Faithful Geyser Data ----
+  # with requested number of bins
+  # This expression that generates a histogram is wrapped in a call
+  # to renderPlot to indicate that:
+  #
+  # 1. It is "reactive" and therefore should be automatically
+  #    re-executed when inputs (input$bins) change
+  # 2. Its output type is a plot
+  output$distPlot <- renderPlot({
+
+    x    <- faithful$waiting
+    bins <- seq(min(x), max(x), length.out = input$bins + 1)
+
+    hist(x, breaks = bins, col = "#75AADB", border = "white",
+         xlab = "Waiting time to next eruption (in mins)",
+         main = "Histogram of waiting times")
+
+    })
+
+}
+```
+
+Finally, you will need to invoke the `shinyApp()` function within your `app.R` file to activate the interactive webpage.
+
+```{r, eval=F, echo=T}
+shinyApp(ui = ui, server = server)
+```
+
+Note that your R session will be occupied while an app is active, preventing the execution of any additional R commands. Essentially, R is running the app and handling user input from the ui. To regain control of your R session, press "Escape" or click the stop sign icon located in the upper right corner of the RStudio console panel.
+
+### Running an App
+Every Shiny app follows the same structure: an `app.R` file containing both the ui and server components in a project. To create a Shiny app, establish a new directory and save an `app.R` file inside it. It is advisable to keep each app in its dedicated directory.
+
+You can launch a Shiny app by providing the name of its directory to the `runApp` function. For instance, if your Shiny app is in a directory called `my_app`, run it using the following code:
+
+```{r, eval=F, echo=T}
+library(shiny)
+###this will not work for you as it on my local machine
+runApp("App/apptest.R")
+```
+
+
+## Shiny Example
+Online repositories are valuable resources for discovering diverse functionalities to enhance your app. You can develop your Shiny apps by duplicating and customizing existing Shiny apps. The Shiny gallery offers excellent examples, or you can explore the eleven pre-built Shiny examples listed below.
+
+```{r,eval=F, echo=T}
+library(shiny)
+runExample("01_hello")      # a histogram
+runExample("02_text")       # tables and data frames
+runExample("03_reactivity") # a reactive expression
+runExample("04_mpg")        # global variables
+runExample("05_sliders")    # slider bars
+runExample("06_tabsets")    # tabbed panels
+runExample("07_widgets")    # help text and submit buttons
+runExample("08_html")       # Shiny app built from HTML
+runExample("09_upload")     # file upload wizard
+runExample("10_download")   # file download wizard
+runExample("11_timer")      # an automated timer
+```
+
+
+## Building a User Interface
+We can construct our own app with a basic understanding of the structure of a Shiny app. Here, we will outline the user interface and then incorporate text, images, and other HTML elements into your Shiny app.
+
+We begin with a basic layout following the format below. This code represents the minimum requirements to create an app, resulting in an empty app with a blank user interface.
+
+```{r, eval=F, echo=T}
+library(shiny)
+# Define UI ----
+ui <- fluidPage(
+  
+)
+```
+
+Let's create a layout. The `fluidPage` function can be utilized to generate a display that automatically adjusts to the dimensions of the browser window. The arrangement of the user interface is determined by the order of the elements you place within the `fluidPage` function.
+
+Here, we will establish a user interface (`ui`) that comprises a title panel and a sidebar layout with a sidebar panel and a main panel. **Note: these elements are positioned within the `fluidPage` function**. `fluidPage()` takes two arguments:
+
+- `sidebarPanel` function output
+- `mainPanel` function output
+
+These functions position content either in the sidebar or the main panels.
+
+```{r, eval=F, echo=T}
+ui <- fluidPage(
+  titlePanel("Geovis Example"),
+
+  sidebarLayout(
+    sidebarPanel("sidebar panel"),
+    mainPanel("main panel")
+  )
+)
+
+# Run the app ----
+shinyApp(ui = ui, server = server)
+```
+
+Indeed, the `fluidPage` function dynamically adjusts elements automatically, making it advantageous for various platforms, such as tablets and cellphones. By default, a sidebar panel appears on the left side of your app. However, you can modify this by providing the optional argument `position = "right"` to `sidebarLayout`. 
+
+Further control over the arrangement of different elements can be achieved using various commands, as detailed [here](https://shiny.rstudio.com/articles/layout-guide.html).
+
+
+```{r, eval=F, echo=T}
+ui <- fluidPage(
+  titlePanel("title panel"),
+  
+  sidebarLayout(
+    position = "right",
+    sidebarPanel("sidebar panel"),
+    mainPanel("main panel")
+  )
+)
+# Run the app ----
+shinyApp(ui = ui, server = server)
+```
+
+The `titlePanel` and `sidebarLayout` functions provide a fundamental layout for your Shiny app, but you can create more advanced layouts as well. For instance:
+- Use `navbarPage` to give your app a multi-page user interface with a navigation bar.
+- Employ `fluidRow` and `column` to construct your layout using a grid system.
+- Explore the Shiny dashboard library at [https://rstudio.github.io/shinydashboard/](https://rstudio.github.io/shinydashboard/), which offers additional features.
+
+## HTML Content
+Content can be added to your Shiny app by placing it inside a *Panel function*. For example, the apps above display a character string in each of their panels. Adding the string "sidebar panel" to the `sidebarPanel` function in the sidebar panel inserts the title "sidebar panel". You can also include text in the title panel and the main panel.
+
+For additional formatted text, you can use Shiny's HTML tag functions, which correspond to common HTML5 tags.
+ 
+
+
+| p | ```<p>``` | A paragraph of text |
+|--------|----------|-----------|
+| h1 | ```<h1>``` | A first level header |
+| h2 | ```<h2>``` | A second level header |
+| h3 | ```<h3>``` | A third level header |
+| h4 | ```<h4>``` | A fourth level header |
+| h5 | ```<h5>``` | A fifth level header |
+| h6 | ```<h6>``` | A sixth level header |
+| a | ```<a>``` | A hyper link |
+| br | ```<br>``` | A line break (e.g. a blank line) |
+| div | ```<div>``` | A division of text with a uniform style |
+| span | ```<span>``` | An in-line division of text with a uniform style |
+| pre | ```<pre>``` | Text 'as is' in a fixed width font |
+| code | ```<code>``` | A formatted block of code |
+| img | ```<img>``` | An image |
+| strong | ```<strong>``` | Bold text |
+| em | ```<em>``` | Italicized text |
+
+You can create headers (e.g., h1 or h5) with `h1("My title")`. When you run this command in the console, you will observe that it generates HTML code.
+
+To integrate this element into your app, pass `h1("My title")` as an argument to `titlePanel`, `sidebarPanel`, or `mainPanel`, depending on where you want to place it in your web page. You can include multiple elements in the same panel by separating them with a comma.
+
+```{r, eval=F, echo=T}
+ui <- fluidPage(
+  titlePanel(h1("My Shiny App")),
+  sidebarLayout(
+    sidebarPanel(),
+    mainPanel(
+      h1("First level title"),
+      h2("Second level title")#,
+      #uncomment to try these levels
+      #h3("Third level title"),
+      ## you can also add alignment using align
+      #h4("Fourth level title", align = "center"),
+      #h5("Fifth level title"),
+      #h6("Sixth level title")
+    )
+  )
+)
+# Run the app ----
+shinyApp(ui = ui, server = server)
+```
+
+Shiny provides a variety of tag functions for formatting text, making it easy to customize the appearance of your content. These tag functions correspond to common HTML tags and allow you to apply different styles, attributes, and structures to your text. Here are a few examples:
+
+1. **Header Tags:**
+   - `h1("Heading 1")`: Creates a top-level heading.
+   - `h2("Heading 2")`: Creates a second-level heading.
+   - ...and so on up to `h6`.
+
+2. **Paragraph Tags:**
+   - `p("This is a paragraph.")`: Creates a paragraph of text.
+
+3. **Bold and Italics:**
+   - `strong("Bold text")`: Displays text in a bold format.
+   - `em("Italicized text")`: Renders text in italics.
+
+4. **Line Break:**
+   - `br()`: Inserts a line break.
+
+5. **Link Tags:**
+   - `a("Click here", href = "https://example.com")`: Creates a hyperlink.
+
+6. **Lists:**
+   - `ul(li("Item 1"), li("Item 2"))`: Creates an unordered list.
+   - `ol(li("Item 1"), li("Item 2"))`: Creates an ordered list.
+
+To use these tags in your Shiny app, include them as arguments within the appropriate panel functions such as `titlePanel`, `sidebarPanel`, or `mainPanel`. For example:
+
+
+
+```{r, eval=F, echo=T}
+library(shiny)
+ui <- fluidPage(
+  titlePanel("My Shiny App"),
+  sidebarLayout(
+    sidebarPanel(),
+    mainPanel(
+      p("p creates a paragraph of text."),
+      p("A new p() command starts a new paragraph. Supply a style attribute to change the format of the entire paragraph.", style = "font-family: 'times'; font-si16pt"),
+      strong("strong() makes bold text."),
+      em("em() creates italicized (i.e, emphasized) text."),
+      br(),
+      code("code displays your text similar to computer code"),
+      div("div creates segments of text with a similar style. This division of text is all blue because I passed the argument 'style = color:blue' to div", style = "color:blue"),
+      br(),
+      p("span does the same thing as div, but it works with",
+        span("groups of words", style = "color:blue"),
+        "that appear inside a paragraph.")
+    )
+  )
+)
+
+# Run the app ----
+shinyApp(ui = ui, server = server)
+```
+
+You can also incorporate images into your Shiny app. To achieve this, follow these steps:
+
+ - Add a folder named `www` to your app directory. This folder will serve as the storage location for your images.
+- Save your image files inside the `www` folder.
+- Use the `img` tag function to reference the images in your Shiny app. For example:
+     ```R
+     img(src = "image.jpg", width = 300, height = 200)
+     ```
+     Ensure to replace "image.jpg" with the actual filename of your image and that the filenames and paths align with the structure of your `www` folder so that your Shiny app can locate and display the images correctly.
+
+```{r, eval=F, echo=T}
+library(shiny)
+ui <- fluidPage(
+  titlePanel("My Shiny App"),
+  sidebarLayout(
+    sidebarPanel(img(src = "rstudio.png", height = 35, width = 100)),
+    mainPanel(
+      p("p creates a paragraph of text."),
+      p("A new p() command starts a new paragraph. Supply a style attribute to change the format of the entire paragraph.", style = "font-family: 'times'; font-si16pt"),
+      strong("strong() makes bold text."),
+      em("em() creates italicized (i.e, emphasized) text."),
+      br(),
+      code("code displays your text similar to computer code"),
+      div("div creates segments of text with a similar style. This division of text is all blue because I passed the argument 'style = color:blue' to div", style = "color:blue"),
+      br(),
+      p("span does the same thing as div, but it works with",
+        span("groups of words", style = "color:blue"),
+        "that appear inside a paragraph.")
+      
+    )
+  )
+)
+
+
+# Run the app ----
+shinyApp(ui = ui, server = server)
+```
+
+## Adding Control Widgets
+Adding interactivity to your Shiny app often requires control widget. A widget is a web element that allows users to interact with your application, providing a means to collect user input. When a user modifies the widget, the associated value is updated accordingly.
+
+![Shiny Widgets](C:/Users/dbvanber/Dropbox (University of Michigan)/Geovis/Labs/Adv_Week_6/basic-widgets.png){ width=50% }
+
+Shiny comes with a family of pre-built widgets, each created with a transparently named R function. For instance, Shiny provides a function named `actionButton` that generates an Action Button, and a function named `sliderInput` that creates a slider bar.
+
+The standard Shiny widgets include:
+
+| function | widget |
+|----------|--------|
+| actionButton | Action Button |
+| checkboxGroupInput | A group of check boxes |
+| checkboxInput | A single check box |
+| dateInput | A calendar to aid date selection |
+| dateRangeInput | A pair of calendars for selecting a date range |
+| fileInput | A file upload control wizard |
+| helpText | Help text that can be added to an input form |
+| numericInput | A field to enter numbers |
+| radioButtons | A set of radio buttons |
+| selectInput | A box with choices to select from |
+| sliderInput | A slider bar |
+| submitButton | A submit button |
+| textInput | A field to enter text |
+
+You can explore the full range of widget options [here](https://shiny.rstudio.com/gallery/widget-gallery.html)
+
+
+
+### Widgets
+To integrate a widget into your app, place a widget function in `sidebarPanel` or `mainPanel` within your `ui` object. Each widget function requires two arguments:
+
+1. **Name:**
+   - This is not visible to the user but serves as an accessible value for the widget. The name should be a character string.
+
+2. **Label:**
+   - It appears with the widget in your app and should be a character string. It can also be an empty string `""`.
+
+Arguments for widgets vary, depending on the specific functionality of the widget. These may include initial values, ranges, and increments. You can find the exact arguments needed for a widget on the widget function’s help page (e.g., `?selectInput`).
+
+```{r, eval=F, echo=T}
+library(shiny)
+
+# Define UI ----
+ui <- fluidPage(
+  titlePanel("Basic widgets"),
+  
+  fluidRow(
+    
+    column(3,
+           h3("Buttons"),
+           actionButton("action", "Action"),
+           br(),
+           br(), 
+           submitButton("Submit")),
+    
+    column(3,
+           h3("Single checkbox"),
+           checkboxInput("checkbox", "Choice A", value = TRUE)),
+    
+    column(3, 
+           checkboxGroupInput("checkGroup", 
+                              h3("Checkbox group"), 
+                              choices = list("Choice 1" = 1, 
+                                             "Choice 2" = 2, 
+                                             "Choice 3" = 3),
+                              selected = 1)),
+    
+    column(3, 
+           dateInput("date", 
+                     h3("Date input"), 
+                     value = "2014-01-01"))   
+  ),
+  
+  fluidRow(
+    
+    column(3,
+           dateRangeInput("dates", h3("Date range"))),
+    
+    column(3,
+           fileInput("file", h3("File input"))),
+    
+    column(3, 
+           h3("Help text"),
+           helpText("Note: help text isn't a true widget,", 
+                    "but it provides an easy way to add text to",
+                    "accompany other widgets.")),
+    
+    column(3, 
+           numericInput("num", 
+                        h3("Numeric input"), 
+                        value = 1))   
+  ),
+  
+  fluidRow(
+    
+    column(3,
+           radioButtons("radio", h3("Radio buttons"),
+                        choices = list("Choice 1" = 1, "Choice 2" = 2,
+                                       "Choice 3" = 3),selected = 1)),
+    
+    column(3,
+           selectInput("select", h3("Select box"), 
+                       choices = list("Choice 1" = 1, "Choice 2" = 2,
+                                      "Choice 3" = 3), selected = 1)),
+    
+    column(3, 
+           sliderInput("slider1", h3("Sliders"),
+                       min = 0, max = 100, value = 50),
+           sliderInput("slider2", "",
+                       min = 0, max = 100, value = c(25, 75))
+    ),
+    
+    column(3, 
+           textInput("text", h3("Text input"), 
+                     value = "Enter text..."))   
+  )
+  
+)
+
+
+# Run the app ----
+shinyApp(ui = ui, server = server)
+```
+
+### Reactive Output
+Here, we will incorporate reactive output that automatically responds when your user toggles a widget. You can create reactive output using a two-step process:
+
+1. **Add an R Object to Your User Interface:**
+   - Include an R object in your user interface.
+
+2. **Indicate How to Build the Object in the Server Function:**
+   - In the server function, specify how to construct the object. The object becomes reactive if the code that builds it involves a widget value.
+
+The following functions transform R objects into output for your Shiny user interface. Each function generates a specific type of output.
+
+| Output Function         | Creates       |
+|-------------------------|---------------|
+| `dataTableOutput`       | DataTable     |
+| `htmlOutput`            | Raw HTML       |
+| `imageOutput`           | Image         |
+| `plotOutput`            | Plot          |
+| `tableOutput`           | Table         |
+| `textOutput`            | Text          |
+| `uiOutput`              | Raw HTML       |
+| `verbatimTextOutput`    | Text          |
+
+You can add output to the user interface in the same manner as adding HTML elements and widgets. Place the output function inside `sidebarPanel` or `mainPanel` in the `ui`.
+
+
+```{r, eval=F, echo=T}
+ui <- fluidPage(
+  titlePanel("censusVis"),
+  
+  sidebarLayout(
+    sidebarPanel(
+      helpText("Create demographic maps with 
+               information from the 2010 US Census."),
+      ## "var" holds the choices below 
+      selectInput("var", 
+                  label = "Choose a variable to display",
+                  choices = c("Percent White",
+                              "Percent Black",
+                              "Percent Hispanic",
+                              "Percent Asian"),
+                  selected = "Percent White"),
+      ## "range" returns the min[1] and the max[2]
+      sliderInput("range",
+                  label = "Range of interest:",
+                  min = 0, max = 100, value = c(0, 100))
+    ),
+    
+    mainPanel(
+      ## these are made up variable names
+      textOutput("selected_var"),
+      textOutput("min_max")
+      )
+  )
+)
+
+# Run the app ----
+shinyApp(ui = ui, server = server)
+```
+
+`textOutput` takes an argument, the character string "selected_var". Output functions require a single argument: a character string that Shiny will use as the name of your reactive element. This is not visible to users.
+
+Now we will place a function in the ui to tell Shiny where to display your object. The server function builds a list-like object named `output` that contains all of the code needed to update the R objects in your app. Each R object needs to have its own entry in the list.
+
+You can create an entry by defining a new element for output within the server function. The element name should match the name of the reactive element that you created in the ui. `output$selected_var` matches `textOutput("selected_var")` in your ui.
+
+```{r, eval=F, echo=T}
+server <- function(input, output) {
+  
+  output$selected_var <- renderText({ 
+    paste("You have selected", input$var)
+  })
+  
+  output$min_max <- renderText({ 
+    paste("You have chosen a range that goes from",
+          input$range[1], "to", input$range[2])
+  })
+  
+}
+shinyApp(ui = ui, server = server)
+```
+R automatically updates output through reference class semantics.
+
+For example, suppose our app has two widgets, one named "var" and one named "range." The values of "var" and "range" will be saved in the `input` as `input$var` and `input$range`. As the slider widget has two values (a min and a max), `input$range` will contain a vector of length two.
+
+Each entry in the `output` should contain the output of one of Shiny’s `render*` functions. These functions capture an R expression and perform some light pre-processing on the expression. Use the `render*` function that corresponds to the type of reactive object you are creating.
+
+| render function   | Creates                                      |
+|-------------------|----------------------------------------------|
+| `renderDataTable` | DataTable                                    |
+| `renderImage`     | Images (saved as a link to a source file)    |
+| `renderPlot`      | Plots                                        |
+| `renderPrint`     | Any printed output                           |
+| `renderTable`     | Data frame, matrix, other table-like structures |
+| `renderText`      | Character strings                            |
+| `renderUI`        | A Shiny tag object or HTML                   |
+
+Each `render` function takes a single argument: an R expression surrounded by braces, `{}`. The expression can be one simple line of text, or it can involve many lines of code, as if it were a complicated function call.
+
+Think of this R expression as a set of instructions that you give Shiny to store for later. Shiny will run the instructions when you first launch your app, and then Shiny will re-run the instructions every time it needs to update your object.
+
+
+## Adding analysis to your own data in a shiny app
+Now that we have explored the basics of shiny, let's add our own data and analysis. Much of the R conventions that we have learned to date can be applied to a shiny app. Here we will grab some data to explore this functionality
+
+```{r}
+#load libraries
+library(shiny)
+library(leaflet)
+library(dplyr)
+library(sf)
+library(leaflet.extras)
+MichFlickr <- read.csv("MichiganFlickr.csv")
+Earthquakes <- read.csv("EarthquakesPrvious30.csv")
+amenData<- st_read("AmenityCali.shp")
+amenData$SocialNorm <- amenData$Nat_Flickr/(amenData$serPop10 + 1)
+## For leaflet we always need to be in WGS 1984
+amenData <- st_transform(amenData, 4326)
+```
+
+## GGplot in Shiny
+```ggplot()``` can be used similarly in the shiny app. Here we will use data from 
+```{r}
+library(ggplot2) # load ggplot
+library(lubridate)
+MichFlickr$date <- as.POSIXct(MichFlickr$dateupload, origin="1970-01-01")
+MichFlickr$date <- as.Date(format(MichFlickr$date, format="%Y-%m-%d"))
+###We will also give it a value. We want to count the number of photos 
+MichFlickr$year <- year(MichFlickr$date)
+MichFlickr$month <- month(MichFlickr$date)
+MichFlickr$day <- day(MichFlickr$date)
+MichFlickr$count<- 1
+MichFlickr$Nature<- MichFlickr$predict_Na > 0.6
+### Grab some data for an interactive plot 
+daily_photography <- MichFlickr %>%
+  mutate(day = as.Date(date, format="%Y-%m-%d")) %>%
+  group_by(day) %>% # group by the day column
+  summarise(total_photos=sum(count)) %>%  # calculate the SUM of all precipitation that occurred on each day
+  na.omit()
+
+
+daily_monthly <- daily_photography %>%
+    mutate(month =  month(ymd(daily_photography$day), label = TRUE, abbr = FALSE),
+           year  = year(as.Date(day, format = "%Y-%m-%d"))) %>%
+    group_by(year,month) %>%
+    summarise(total.qty = sum(total_photos)) %>%
+  filter(year > 2008)
+
+
+### This is code from our time series lab (week 3)
+```
+
+Here, we will include a user interface (UI) with a slider that controls the ggplot output, representing the total quantity of Flickr photographs shown in the plot. 
+
+```{r, eval=F, echo=T}
+# Define server logic required to plot various variables against mpg
+library(ggplot2)
+
+ui <- fluidPage(
+  titlePanel(title=h4("Flickr Photographs", align="center")),
+  sidebarPanel( 
+    sliderInput("num", "Number:",min = min(daily_monthly$total.qty), max = max(daily_monthly$total.qty),step=1,value=c(min(daily_monthly$total.qty),max(daily_monthly$total.qty)))),
+  mainPanel(plotOutput("plot2")))
+
+```
+
+The server takes the min and max from the slider to define dataframe for the plot.  
+
+```{r, eval=F, echo=T}
+server <- function(input,output){
+
+  dat <- reactive({
+    test <- daily_monthly[daily_monthly$total.qty %in% seq(from=min(input$num),to=max(input$num),by=1),]
+    
+  })
+
+  output$plot2<-renderPlot({
+    ggplot(dat(),aes(x=month,y=total.qty, color = as.factor(year)))+
+      geom_point()}
+    ,height = 400,width = 600)}
+
+
+shinyApp(ui, server)
+
+```
+
+We can enhance interactivity by incorporating interactive labels using ggplotly(), which leverages Plotly, a JavaScript library (plotly.js). This feature enables the creation of beautiful, interactive web-based visualizations that can be displayed in Shiny.
+
+```{r, eval=F, echo=T}
+library(plotly)
+
+ui <- fluidPage(
+  titlePanel(title=h4("Flickr Photographs", align="center")),
+  sidebarPanel( 
+   sliderInput("num", "Number:",min = min(daily_monthly$total.qty), max = max(daily_monthly$total.qty),step=1,value=c(min(daily_monthly$total.qty),max(daily_monthly$total.qty)))),
+  ### here we have to specify a plotlyOutput()
+  mainPanel(plotlyOutput("plot2")))
+
+server <- function(input,output){
+
+  dat <- reactive({
+    test <- daily_monthly[daily_monthly$total.qty %in% seq(from=min(input$num),to=max(input$num),by=1),]
+    #print(test)
+    #test
+  })
+
+  output$plot2<-renderPlotly({
+    ggplotly(
+      ggplot(dat(),aes(month,y=total.qty,color = as.factor(year)))
+      +geom_point())
+  })
+  }
+shinyApp(ui, server)
+```
+
+
+Certainly! Plotly provides a variety of functions that can be explored [here](https://plotly.com/ggplot2/extending-ggplotly/).
+
+## Mapping in Shiny
+To create a Shiny app with your own spatial data, we will use the leaflet package. Leaflet, much like Plotly, is a popular open-source JavaScript library for interactive maps. It is employed by websites ranging from The New York Times and The Washington Post to GitHub and Flickr, as well as GIS specialists like OpenStreetMap, Mapbox, and CartoDB. [Leaflet](https://rstudio.github.io/leaflet/shapes.html) is an open-source JavaScript library for mobile-friendly interactive maps. It is lightweight (38 KB) and includes many mapping features. Leaflet is simple, works efficiently across all major desktop and mobile platforms, and can be extended with numerous plugins. The R `leaflet()` package makes it easy to integrate and control Leaflet maps in R.
+
+Features:
+- Interactive panning/zooming
+- Compose maps using arbitrary combinations of:
+  - Map tiles
+  - Markers
+  - Polygons
+  - Lines
+  - Popups
+  - GeoJSON
+
+`leaflet` allows you to:
+1. Create maps from RStudio
+2. Embed maps in knitr/R Markdown documents and Shiny apps
+3. Render spatial objects from the sp or sf packages, or data frames with latitude/longitude columns
+4. Implement spatial interactivity using map bounds and mouse events that drive Shiny logic
+5. Display maps in non-spherical mercator projections
+6. Augment map features using chosen plugins from the leaflet plugins repository
+
+In this example, we map the `amenData` over map tiles from Open Street Map using `addTiles()`. The `addPolygons()` function controls the options for the imported spatial data (sf). The `label` option manages map labels, and the `addLegend()` function populates legend variables.        
+
+```{r}
+library(leaflet)
+  pal <- colorNumeric(c("red", "green", "blue"), 0:5)
+
+leaflet(amenData) %>% 
+ addTiles() %>%
+ addPolygons(stroke = FALSE, smoothFactor = 0.3, fillOpacity = 1,
+                 fillColor = ~pal(cstdstL),
+label = ~paste0("Nat_Flickr: ", formatC(cstdstL, big.mark = ","))) %>%
+addLegend(pal = pal, values = ~cstdstL, opacity = 1.0,
+              labFormat = labelFormat(transform = function(x)(x)))
+            
+```
+
+
+We can also visualize rasters using the addRasterImage 
+
+```{r}
+library(raster)
+library(RColorBrewer)
+r <- raster("SLurbnSuit.tif", format="GTiff")
+pal <- colorNumeric(c(rev(brewer.pal(n = 3, name = "RdBu"))), values(r),
+  na.color = "transparent")
+
+leaflet() %>% addTiles() %>%
+  addRasterImage(r, colors = pal, opacity = 0.8) %>%
+  addLegend(pal = pal, values = values(r),
+    title = "Urban Development Suitability")
+```
+
+Integrating maps from leaflet into a Shiny app, while straightforward, requires special variables. Once again, we will need a UI and the server for our app. First, we will create a UI with a leaflet output. `leafletOutput()` creates a leaflet UI element.
+
+In this UI, we are including an `absolutePanel` and a reactive input. The `absolutePanel` function gives us the option to specify where to place the panel. In this panel, we have added a `selectInput`. The `selectInput()` function accepts one or more choices for inputs.
+
+
+```{r, eval=F, echo=T}
+ui <- fluidPage(leafletOutput("mymap", width = "100%", height = 500),
+                absolutePanel(top=1, right=150,
+                              selectInput("variables", "Visualize the variable:", c("Time to nearest urban area", "Number of Zoos", "Number of University Institutes", "Flickr Photos (Normalized on Population)"), selected="Time to nearest urban area"))
+)
+
+```
+
+For the server, we need logical operators (if statements) that control the different inputs from the user interface.   
+
+```{r, eval=F, echo=T}
+server <- function(input, output) {
+
+  output$mymap <- renderLeaflet({
+
+    if(input$variables=="Time to nearest urban area"){x <- amenData$cstdstL}
+    if(input$variables=="Number of Zoos"){x <- amenData$ZooAmusEMP}
+    if(input$variables=="Number of University Institutes"){x <- amenData$HotelEMPL}
+    if(input$variables=="Flickr Photos (Normalized on Population)"){x <- amenData$SocialNorm}
+
+    pal <- colorNumeric(
+      palette = "viridis",
+      domain = x # as.numeric(na.omit(x))
+    )
+
+    legend.title <- paste(paste0(input$variables, " ("), round(min(x, na.rm=T), 2), " - ", round(max(x, na.rm=T), 2), ")", sep="")
+
+    leaflet(amenData) %>%
+      addTiles(group = "OSM (default)") %>%
+      addProviderTiles("Stamen.Toner", group = "Toner") %>%
+      addProviderTiles("Stamen.TonerLite", group = "Toner Lite") %>%
+      addProviderTiles("CartoDB.Positron", group = "CartoDB") %>%
+      addPolygons(stroke = FALSE, smoothFactor = 0.2, fillOpacity = 0.8, color = ~pal(x)) %>%
+      addLegend("bottomright", pal = pal, values = ~x, title = legend.title, labFormat = labelFormat(suffix = ""), opacity = 0.3) %>%
+      addLayersControl(baseGroups = c("OSM (default)", "Toner", "Toner Lite", "CartoDB"),options = layersControlOptions(collapsed = FALSE))
+
+  })
+}
+
+# Run the application
+shinyApp(ui = ui, server = server)
+
+```
+
+
+
+Now, let's explore options for different spatial data types. Here, we will use the point data from the Flickr dataset.
+
+In the UI, we are adding an action button, which activates a reactive function on the server. In this case, we are grabbing a random sample of points.
+
+```{r, eval=F, echo=T}
+
+ui <- fluidPage(
+  titlePanel("Get a sample of nature photographs from Flickr"),
+  
+    sidebarLayout(
+
+      # Sidebar with a slider input
+      sidebarPanel(  p("Press 'New Points' to draw a new sample of Flickr photographs"),
+      actionButton("recalc", "New points")),
+  
+      # Show a plot of the generated distribution
+      mainPanel(leafletOutput("mymap")
+
+    )
+  )
+)
+
+```
+
+The server calculates the new random sample of points. The `addProviderTiles()` function grabs a base map, and the `addMarkers()` function takes the latitude and longitude coordinates to visualize the location of the random sample. We also include a label using the `label` variable.
+
+```{r, eval=F, echo=T}
+server <- function(input, output, session) {
+
+  points <- eventReactive(input$recalc, {
+  MichFlickr[sample(1:nrow(MichFlickr), size=100, replace=FALSE),]
+  }, ignoreNULL = FALSE)
+
+  output$mymap <- renderLeaflet({
+    leaflet() %>%
+      addProviderTiles(providers$Stamen.TonerLite,
+        options = providerTileOptions(noWrap = TRUE)
+      ) %>%
+      addMarkers(data = points(), ~longitude,~latitude, popup = ~as.character(paste("predicted nature",predict_Na)), label = ~as.character(paste("predicted nature",predict_Na)))
+  })
+}
+
+shinyApp(ui, server)
+```
+
+
+Let's try another exercise where we add different thematic options to our map. We are going to map earthquakes from March 9 to April 8, 2020. The data can be found on the USGS [website](https://earthquake.usgs.gov/earthquakes/search/).
+
+In this input, we are adding a `sliderInput()` that provides a range of values to display on the map (earthquake magnitude), a `selectInput()` that gives a list of different color palettes for the map, and a `checkboxInput()`, which adds a checkbox input. When a checkbox input has no selected choices, the reactive value is NULL.
+
+```{r, eval=F, echo=T}
+library(RColorBrewer)
+ui <- fluidPage(
+  mainPanel( 
+#this will create space for us to display a map
+leafletOutput("mymap"), 
+#this allows me to put the checkmarks on top of the map to allow people to view earthquake depth or overlay a heatmap
+sidebarPanel(
+    ## here we define a slider.  The first variable is the input slot that is reactive in the server
+    ## the second is the variable, the third and fourth is max and min value possible
+    ## the fifth is the starting value and ending value and the last the possible interval 
+    sliderInput("range", "Magnitudes", min(Earthquakes$mag), max(Earthquakes$mag), value = range(Earthquakes$mag), step = 0.1
+    ),
+    ##Here we specify a select input. Again an input slot, name for the input and 
+    ## finally a list of names that can be obtained from color brewer
+    selectInput("colors", "Color Scheme",
+      rownames(subset(brewer.pal.info, category %in% c("seq", "div")))
+    ),
+    ## finally we a check mark with a input slot name
+    checkboxInput("legend", "Show legend", TRUE)
+    )
+))
+
+```
+
+Now, we will set up a server function for our app. This is a rather involved code that will need some explaining. In this example, we have different reactive code that takes UI inputs. First, we filter the range of data and pass this data to the next options. Then, the color palette is defined based on the UI choice.
+
+We then move into options available from the leaflet package that, instead of redrawing map elements, observe them and changes them on the fly. This is specified using the `observe` function from the leafletproxy library. While the base map is rendered, other functions can be called. For example, the size of the points and their color can be changed on the fly without clearing the points and the basemap. Within the `observe` function, the elements must be cleared and then called again. For example, first, we `clearShapes()` and `addCircles()` for changing the range of shapes that are visualized. If the clear function is not called, these shapes remain. Finally, we add a legend with the same dynamics of the depicted shapes.
+
+
+```{r, eval=F, echo=T}
+server <- function(input, output, session) {
+  # Reactive expression for the data subsetted to what the user selected
+  # here we have reactive variable that responds to the slider input (range)
+  # here we grab the data that is great than range[1] and less than range[2]
+  filteredData <- reactive({
+    Earthquakes[Earthquakes$mag >= input$range[1] & Earthquakes$mag <= input$range[2],]
+  })
+
+  # This reactive expression represents the palette function,
+  # which changes as the user makes selections in UI.
+  colorpal <- reactive({
+    colorNumeric(input$colors, Earthquakes$mag)
+  })
+
+  output$mymap <- renderLeaflet({
+    # Use leaflet() here, and only include aspects of the map that
+    # won't need to change dynamically (at least, not unless the
+    # entire map is being torn down and recreated).
+    leaflet(Earthquakes) %>% addTiles() %>%
+      fitBounds(~min(longitude), ~min(latitude), ~max(longitude), ~max(latitude))
+  })
+
+  # Incremental changes to the map (in this case, replacing the
+  # circles when a new color is chosen) should be performed in
+  # an observer. Each independent set of things that can change
+  # should be managed in its own observer.
+  observe({
+    pal <- colorpal()
+
+    leafletProxy("mymap", data = filteredData()) %>%
+      ## removeControls remove one or more features from a map
+      ## this remove previous shape from previous reactive input
+      clearShapes() %>%
+      addCircles(radius = ~10^mag, weight = 1, color = "#777777",
+        fillColor = ~pal(mag), fillOpacity = 0.7, popup = ~paste(mag)
+      )
+  })
+
+  # Use a separate observer to recreate the legend as needed.
+  observe({
+    proxy <- leafletProxy("mymap", data = Earthquakes)
+
+    # Remove any existing legend, and only if the legend is
+    # enabled, create a new one.
+    proxy %>% clearControls()
+    if (input$legend) {
+      pal <- colorpal()
+      proxy %>% addLegend(position = "bottomright",
+        pal = pal, values = ~mag
+      )
+    }
+  })
+}
+shinyApp(ui, server)
+
+```
+
+
+Finally, we are going to publish our app. This can be done using Shinyapps.io. Shinyapps.io is fairly easy to use and ensures that your data and app are secure. To publish your app, you will need to sign up for an account on the Shinyapps.io website. Sign up using your umich account. This will take you to a page where the necessary instructions are located.
+
+![Shiny Cloud Account](C:/Users/dbvanber/Dropbox (University of Michigan)/Geovis/Labs/Adv_Week_6/shinycloudaccount.png)
+
+Install the required package.
+
+```{r,eval=F, echo=T}
+install.packages('rsconnect')
+```
+
+Hit the "Show Secret" button and run the `AUTHORIZE ACCOUNT` code that will initialize the `rsconnect::setAccountInfo`. This code will not work. You must use your own account.
+
+```{r,eval=F, echo=T}
+rsconnect::setAccountInfo(name='humblepasty',
+			  token='747B094FAC0032D26C07B1C792C4247E',
+			  secret='OLQIYQlfrG/zKgFooiBRbFj68ncG45ZvEQ5Sj/2u')
+
+rsconnect::deployApp('/App/apptest.R')
+```
+
+You can now open a Shiny web application, which will prompt you to define a new directory. Choose the entire app or the UI and server option depending on how you have organized the app. This creates an `app.R` file in the specified directory just created. Move any data that you are using in your app to this directory. You will have to modify any absolute directory paths to relative (Good: `read.csv("mycsv.csv");` Bad: `read.csv("C:\My Documents\myproject\mydatadirectory\mycsv.csv")`).
+
+Finally, use the publish button ![Publish Icon](C:/Users/dbvanber/Dropbox (University of Michigan)/Geovis/Labs/Adv_Week_6/publishIcon.png "publish") to push the files and apps to your [shinyapps.io](https://www.shinyapps.io/) (remember that you are limited to 5 apps).
+
+![RStudio Connect](C:/Users/dbvanber/Dropbox (University of Michigan)/Geovis/Labs/Adv_Week_6/RstudioConnect.png){ width=50% }
+
+## Assignment
+Make your own Shiny app:
+
+1. The app should be interpretable from the interface (we are not requiring text explaining the app).
+2. It should include your own collected data (e.g., from the capstone project).
+3. Be creative, and have fun with it.
+4. Include Shiny interactive elements and the possibility for knowledge discovery.
+5. Send the URL as your submission.

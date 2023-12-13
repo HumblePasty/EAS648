@@ -1,0 +1,12 @@
+name: Apptest
+title: Apptest
+username:
+account: derek-van-berkel-shiny
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 2114211
+bundleId: 3011373
+url: https://derek-van-berkel-shiny.shinyapps.io/Apptest/
+when: 1586866363.79499
+asMultiple: FALSE
+asStatic: FALSE
