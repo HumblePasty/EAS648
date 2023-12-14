@@ -12,6 +12,7 @@ library(shinydashboard)
 library(shinyWidgets)
 library(leaflet)
 library(DT)
+library(plotly)
 
 ui <- dashboardPage(
   dashboardHeader(
@@ -45,7 +46,9 @@ ui <- dashboardPage(
   dashboardSidebar(
     sidebarMenu(
       # homelessness map
-      menuItem(" Homelessness in Michigan", tabName = "homeless", icon = icon("house-chimney-crack"))
+      menuItem(" Homelessness in Michigan", tabName = "homeless", icon = icon("house-chimney-crack")),
+      menuItem(" Homeless Statistics", tabName = "dashboard", icon = icon("tachometer-alt")),
+      menuItem(" About", tabName = "about", icon = icon("bookmark"))
     )
   ),
   
@@ -123,7 +126,7 @@ ui <- dashboardPage(
               hr(),
               
               # Options
-              tags$style(type = "text/css", ".col-sm-3 {height: 93vh}"),
+              # tags$style(type = "text/css", ".col-sm-3 {height: 93vh}"),
               id = "controls", class = "panel panel-default",
               
               h3(span(icon("gear")), "   ", "Options"),
@@ -142,7 +145,73 @@ ui <- dashboardPage(
             
           )
         )
-      )
+      ),
+      tabItem(tabName = "dashboard",
+              tags$style(type = "text/css", "#shiny-tab-dashboard .row {margin:0}"),
+              # TBD: Dashboard of Homeless data
+              fluidRow(
+                box(
+                  width = 12,
+                  title = span(icon("tachometer-alt"), "Homelessness Statistics"),
+                  
+                  h4("Select Data to be Summarised"),
+                  
+                  column(
+                    width = 6,
+                    sliderInput(
+                      inputId = "dashboard_year_filter",
+                      label = "Year Range",
+                      min = 2014,
+                      max = 2022,
+                      value = c(2014, 2022),
+                      sep = ''
+                    )
+                  ),
+                  column(
+                    width = 6,
+                    uiOutput("dashboard_coc_filter_ui")
+                  )
+                ),
+                
+                fluidRow(
+                  height = "20vh",
+                  infoBoxOutput(width = 3, outputId = "infobox_total_num"),
+                  infoBoxOutput(width = 3, outputId = "infobox_total_family"),
+                  infoBoxOutput(width = 3, outputId = "infobox_age"),
+                  infoBoxOutput(width = 3, outputId = "infobox_shelter_percent")
+                ),
+                
+                fluidRow(
+                  box(
+                    width = 6,
+                    title = "CoC Location",
+                    leafletOutput(outputId = "dashboard_map")
+                  ),
+                  box(
+                    width = 6,
+                    title = "Age distribution",
+                    plotlyOutput(outputId = "age_distribution_plot")
+                  )
+                ),
+                
+                fluidRow(
+                  box(
+                    width = 6, 
+                    title = "Sheltering Status",
+                    plotlyOutput(outputId = "shelter_status_plot")
+                  ),
+                  box(
+                    width = 6,
+                    title = "Year trends",
+                    plotlyOutput(outputId = "year_trend_plot")
+                  )
+                )
+              )
+              ),
+      tabItem(tabName = "about",
+              tags$style(type = "text/css", "#shiny-tab-about {padding: 0px 15px}"),
+              includeMarkdown("desc/desc_about.md")
+              )
     )
   )
 )

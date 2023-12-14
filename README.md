@@ -35,5 +35,5 @@ Repository for codes in EAS 648: Advanced Geovisualization, University of Michig
   - [Webpage](https://humblepasty.github.io/EAS648/Lab/05/)
   - [Repository](https://github.com/HumblePasty/EAS648/tree/master/Lab/05)
 - Final Project: Michigan Homelessness Visualization App
-  - [Webpage](https://humblepasty.github.io/EAS648/Project/)
-  - [Repository](https://humblepasty.shinyapps.io/mygeovizapp/)
+  - [Webpage](https://humblepasty.shinyapps.io/mygeovizapp/)
+  - [Repository](https://github.com/HumblePasty/EAS648/tree/master/Project)

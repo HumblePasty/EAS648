@@ -4,13 +4,13 @@
 >
 > Last Updated: 12/13/2023
 
-[**Click Here to Redirect**](https://humblepasty.shinyapps.io/mygeovizapp/)
-
 
 
 ## Overview
 
 The Michigan Homelessness Visualization App is an interactive web application designed to provide insights into the state of homelessness in Michigan. It aims to offer a comprehensive view of the homelessness landscape, aiding in informed decision-making and policy development.
+
+
 
 ## Data Sources
 
@@ -21,6 +21,8 @@ The data for this application is sourced from two primary locations:
 
 The application also uses historical data spanning from 2007 to 2022, detailing various metrics related to homelessness in each CoC zone within Michigan.
 
+
+
 ## Technical Architecture
 
 The application is built using the following technologies:
@@ -29,6 +31,8 @@ The application is built using the following technologies:
 - **Leaflet**: An open-source JavaScript library for mobile-friendly interactive maps, integrated with R Shiny for geographical data visualization.
 - **readxl and dplyr**: R packages used for data manipulation and processing.
 - **shinydashboard**: An R package that provides functions to build dashboards.
+
+
 
 ## Page Organization
 
@@ -40,10 +44,13 @@ The web application is structured into several key components:
 
 The application is designed to be user-friendly, allowing users to interact with the map and toggle different layers for a more customized view of the data.
 
-<img src="https://rsdonkeyrepo1.oss-cn-hangzhou.aliyuncs.com/img/image-20231213193128044.png" alt="image-20231213193128044" style="zoom: 33%;" />
+
 
 ## References
 
 - https://github.com/Hong-Kong-Districts-Info/hktrafficcollisions/
 - https://github.com/byollin/Isolines
 - https://rstudio.github.io/DT/shiny.html
+
+
+

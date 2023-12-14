@@ -15,6 +15,7 @@ library(RColorBrewer)
 library(dplyr)
 library(stringr)
 library(DT)
+library(tidyr)
 
 
 server <- function(input, output, session) {
@@ -198,6 +199,208 @@ server <- function(input, output, session) {
     )
   })
   
+  # Output function for dashboard
+  output$dashboard_coc_filter_ui = renderUI({
+    selectInput(
+      inputId = "dashboard_coc_filter",
+      label = "Choose a Specific COC",
+      choices = setNames(
+        c("all", coc_data$COCNUM),
+        c("All", coc_data$COCNAME)
+      ),
+      selected = "all"
+    )
+  })
+  
+  # select the coc data by the filter
+  dashboard_coc_filtered = reactive({
+    dsb_coc_filtered = michigan_homeless_df
+    # filter by selected coc
+    coc_chosen = if (is.null(input$dashboard_coc_filter)) "all" else input$dashboard_coc_filter
+    if (input$dashboard_coc_filter != "all") {
+      dsb_coc_filtered = filter(michigan_homeless_df, `CoC Number` == coc_chosen)
+    }
+    
+    # filter by selected year
+    dsb_coc_filtered = filter(dsb_coc_filtered, Year >= input$dashboard_year_filter[1] & Year <= input$dashboard_year_filter[2])
+
+    # print(nrow(dsb_coc_filtered))
+    
+    dsb_coc_filtered
+  })
+  
+  # the outputs
+  
+  output$infobox_total_num = renderInfoBox({
+    n_homeless = sum(dashboard_coc_filtered()$`Overall Homeless`)
+    
+    infoBox(
+      title = "",
+      value = format(n_homeless, big.mark = ","),
+      subtitle = "Homelessness Count",
+      icon = icon("house-circle-xmark"),
+      color = "black"
+    )
+  })
+  
+  output$infobox_total_family = renderInfoBox({
+    n_homeless_fam = sum(dashboard_coc_filtered()$`Overall Homeless People in Families`)
+    
+    infoBox(
+      title = "",
+      value = format(n_homeless_fam, big.mark = ","),
+      subtitle = "Homelessness in families",
+      icon = icon("people-roof"),
+      color = "orange"
+    )
+  })
+  
+  output$infobox_age = renderInfoBox({
+    ave_age = sum(dashboard_coc_filtered()$`Overall Homeless - Under 18` * 18 +
+    dashboard_coc_filtered()$`Overall Homeless - Age 18 to 24` * 21 +
+    dashboard_coc_filtered()$`Overall Homeless - Over 24` * 40) /
+      sum(dashboard_coc_filtered()$`Overall Homeless - Under 18` +
+            dashboard_coc_filtered()$`Overall Homeless - Age 18 to 24` +
+            dashboard_coc_filtered()$`Overall Homeless - Over 24`)
+    
+    infoBox(
+      title = "",
+      value = format(ave_age, big.mark = ","),
+      subtitle = "Estimated Mean Age",
+      icon = icon("person-cane"),
+      color = "red"
+    )
+  })
+  
+  output$infobox_shelter_percent = renderInfoBox({
+    shelter_rate = 1 - sum(dashboard_coc_filtered()$`Unsheltered Homeless`) / sum(dashboard_coc_filtered()$`Overall Homeless`)
+    
+    infoBox(
+      title = "",
+      value = format(shelter_rate, big.mark = ","),
+      subtitle = "The shelter rate",
+      icon = icon("person-shelter"),
+      color = "orange"
+    )
+  })
+  
+  output$dashboard_map = renderLeaflet({
+    filtered_coc = unique(dashboard_coc_filtered()$`CoC Number`)
+    coc_data_filtered = coc_data[coc_data$COCNUM == filtered_coc,]
+    leaflet() %>%
+      addProviderTiles(providers$CartoDB.Positron) %>%  # 添加默认的地图瓦片
+      addPolygons(data = coc_data_filtered, fillColor = ~pal(COCNUM), weight = 2, color = "#444444", opacity = 1, fillOpacity = 0.7, group = "coc", 
+                  popup = ~paste0(
+                    '<table style="width:100%; border-collapse: collapse;" align="center">',
+                    '<tr><td style="text-align:center; padding: 4px; border: 1px solid #ddd;"><b>Name</b></td>',
+                    '<td style="text-align:center; padding: 4px; border: 1px solid #ddd;">', COCNAME, '</td></tr>',
+                    '<tr><td style="text-align:center; padding: 4px; border: 1px solid #ddd;"><b>ARD</b></td>',
+                    '<td style="text-align:center; padding: 4px; border: 1px solid #ddd;">$', scales::comma(ARD), '</td></tr>',
+                    '<tr><td style="text-align:center; padding: 4px; border: 1px solid #ddd;"><b>PPRN</b></td>',
+                    '<td style="text-align:center; padding: 4px; border: 1px solid #ddd;">$', scales::comma(PPRN), '</td></tr>',
+                    '<tr><td style="text-align:center; padding: 4px; border: 1px solid #ddd;"><b>FPRN</b></td>',
+                    '<td style="text-align:center; padding: 4px; border: 1px solid #ddd;">$', scales::comma(FPRN), '</td></tr>',
+                    '</table>'
+                  )
+      ) %>%
+      addPolygons(data = michigan_county_data, color = "#555555", weight = 1, fill = FALSE, dashArray = "5, 5", group = "county", popup = ~NAME)
+  })
+  
+  output$age_distribution_plot = renderPlotly({
+    plot_data <- data.frame(
+      `Age.Group` = c("Under 18", "18 to 24", "Over 24"),
+      `Age.Count` = c(
+        sum(dashboard_coc_filtered()$`Overall Homeless - Under 18`),
+        sum(dashboard_coc_filtered()$`Overall Homeless - Age 18 to 24`),
+        sum(dashboard_coc_filtered()$`Overall Homeless - Over 24`)
+      )
+    )
+    
+    plot_by_age = ggplot(
+      plot_data, aes(x = `Age.Group`, y = `Age.Count`, fill = `Age.Group`)) +
+        geom_bar(stat = "identity") +
+        coord_flip() +
+        # scale_fill_manual(values = ) +
+        theme_minimal() +
+        theme(
+          axis.title.y = element_blank(),
+          panel.grid.major.y = element_blank(),
+          panel.grid.minor.y = element_blank(),
+          legend.position = "none"
+        )
+    
+    ggplotly(plot_by_age, tooltip = c("x", "y"))
+  })
+  
+  output$shelter_status_plot = renderPlotly({
+    plot_data <- data.frame(
+      `Shelter.Type` = c("Sheltered ES", "Sheltered TH", "Unsheltered"),
+      `Shelter.Count` = c(
+        sum(dashboard_coc_filtered()$`Sheltered ES Homeless`),
+        sum(dashboard_coc_filtered()$`Sheltered TH Homeless`),
+        sum(dashboard_coc_filtered()$`Unsheltered Homeless`)
+      )
+    )
+    
+    plot_by_shelter = ggplot(
+      plot_data, aes(x = `Shelter.Type`, y = `Shelter.Count`, fill = `Shelter.Type`)) +
+      geom_col(width = 1) +
+      # coord_polar("y", start = 0) +
+      theme_void()
+      # theme(
+      #   axis.title.y = element_blank(),
+      #   panel.grid.major.y = element_blank(),
+      #   panel.grid.minor.y = element_blank(),
+      #   legend.position = "none"
+      # )
+    
+    ggplotly(plot_by_shelter, tooltip = c("x", "y"))
+  })
+  
+  output$year_trend_plot = renderPlotly({
+    plot_data <- data.frame()
+    
+    filtered_coc_data = dashboard_coc_filtered()
+    
+    for (year in unique(filtered_coc_data$Year)) {
+      this_year = filtered_coc_data[filtered_coc_data$Year == year,]
+      
+      overall_homeless <- sum(this_year$`Overall Homeless`)
+      unsheltered_homeless <- sum(this_year$`Unsheltered Homeless`)
+      sheltered_homeless <- overall_homeless - unsheltered_homeless
+      shelter_rates <- sheltered_homeless / overall_homeless
+      
+      mean_age <- sum(
+        this_year$`Overall Homeless - Under 18` * 18 +
+          this_year$`Overall Homeless - Age 18 to 24` * 21 +
+          this_year$`Overall Homeless - Over 24` * 40
+      ) / overall_homeless
+      
+      # 将计算结果添加到数据框中
+      plot_data <- rbind(plot_data, data.frame(Years = year, 
+                                               Overall.Homeless = overall_homeless,
+                                               Shelter.Rates = shelter_rates,
+                                               Mean.Age = mean_age))
+    }
+    
+    if (nrow(plot_data) == 1) {return()}
+    
+    plot_data_long <- gather(plot_data, key = "Variable", value = "Value", -Years)
+    
+    plot_by_year = ggplot(
+      plot_data_long, aes(x = `Years`, y = `Value`, color = `Variable`, group = Variable)) +
+      geom_line() +
+      geom_point() +
+      # coord_polar("y", start = 0) +
+      theme_minimal() +
+      scale_color_manual(values = c("blue", "red", "green")) +
+      labs(x = "Year", y = "Value", color = "Metrics") +
+      theme(legend.position = "bottom")
+    
+    ggplotly(plot_by_year, tooltip = c("x", "y"))
+  })
+  
+  # Event listeners
   observe({
     if (input$show_county) {
       leafletProxy("homeless_map") %>%
