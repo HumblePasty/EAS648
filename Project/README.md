@@ -40,7 +40,7 @@ The web application is structured into several key components:
 
 The application is designed to be user-friendly, allowing users to interact with the map and toggle different layers for a more customized view of the data.
 
-<img src="https://rsdonkeyrepo1.oss-cn-hangzhou.aliyuncs.com/img/image-20231213193128044.png" alt="image-20231213193128044" style="zoom: 33%;" />
+<img src="https://rsdonkeyrepo1.oss-cn-hangzhou.aliyuncs.com/img/image-20231214042822710.png" alt="image-20231213193128044" style="zoom: 33%;" />
 
 ## References
 
